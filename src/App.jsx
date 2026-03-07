@@ -1572,9 +1572,11 @@ export default function App() {
     { id: "leaderboard", label: "🏆 Standings" },
     { id: "bracket",     label: "🎯 Bracket"   },
     { id: "live",        label: "🔴 Live"       },
-    { id: "auction",     label: "🔨 Auction"   },
     { id: "history",     label: "📜 History"   },
-    ...(isAdmin ? [{ id: "admin", label: "⚙️ Admin" }] : []),
+    ...(isAdmin ? [
+      { id: "auction", label: "🔨 Auction" },
+      { id: "admin",   label: "⚙️ Admin"   },
+    ] : []),
   ];
 
   if (dbStatus === "unconfigured") return <SetupGuide />;
@@ -1642,9 +1644,9 @@ export default function App() {
         {tab === "leaderboard" && <Leaderboard teams={teams} />}
         {tab === "bracket"     && <BracketView teams={teams} />}
         {tab === "live"        && <LiveScores teams={teams} />}
-        {tab === "auction"     && <AuctionRoom teams={teams} setTeams={setTeams} />}
         {tab === "history"     && <HistoryTab />}
-        {tab === "admin" && isAdmin && <AdminPanel teams={teams} setTeams={setTeams} onReset={handleReset} />}
+        {tab === "auction" && isAdmin && <AuctionRoom teams={teams} setTeams={setTeams} />}
+        {tab === "admin"   && isAdmin && <AdminPanel teams={teams} setTeams={setTeams} onReset={handleReset} />}
       </div>
     </div>
   );
