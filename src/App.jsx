@@ -367,7 +367,7 @@ function BracketView({ teams }) {
 }
 
 // ── AUCTION ROOM ──────────────────────────────────────────────────────────────
-function AuctionRoom({ teams, setTeams }) {
+function AuctionRoom({ teams, setTeams, isAdmin }) {
   const [pickedTeam, setPickedTeam] = useState(null);   // the team object currently up for bid
   const [bids, setBids] = useState({});
   const [log, setLog] = useState([]);
@@ -486,12 +486,12 @@ function AuctionRoom({ teams, setTeams }) {
         })}
       </div>
 
-      {/* ── IDLE: big Pick button ── */}
+      {/* ── IDLE: big Pick button (admin) or waiting message (viewer) ── */}
       {phase === "idle" && (
         <div style={{ textAlign: "center", padding: "32px 0" }}>
           {unsoldTeams.length === 0 ? (
             <div style={{ color: "#34d399", fontSize: 20, fontWeight: 800 }}>🏆 All {teams.length} teams have been auctioned!</div>
-          ) : (
+          ) : isAdmin ? (
             <>
               <div style={{ fontSize: 13, color: "#4a6278", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 20 }}>
                 {unsoldTeams.length} teams remaining
@@ -505,6 +505,11 @@ function AuctionRoom({ teams, setTeams }) {
                 🎲 Pick Next Team
               </button>
             </>
+          ) : (
+            <div style={{ color: "#4a6278", fontSize: 16, fontWeight: 700 }}>
+              ⏳ Waiting for next team to be drawn…
+              <div style={{ fontSize: 13, marginTop: 8 }}>{unsoldTeams.length} teams remaining</div>
+            </div>
           )}
         </div>
       )}
@@ -541,13 +546,16 @@ function AuctionRoom({ teams, setTeams }) {
             {displayTeam.name}
           </div>
 
-          {phase === "reveal" && (
+          {phase === "reveal" && isAdmin && (
             <button onClick={startBidding} style={{
               marginTop: 20, background: "#f43f5e", color: "#fff", border: "none",
               borderRadius: 10, padding: "14px 36px", fontSize: 17, fontWeight: 800, cursor: "pointer",
             }}>
               🔨 Open Bidding
             </button>
+          )}
+          {phase === "reveal" && !isAdmin && (
+            <div style={{ marginTop: 16, color: "#4a6278", fontSize: 14, fontWeight: 700 }}>⏳ Waiting for bidding to open…</div>
           )}
         </div>
       )}
@@ -587,101 +595,133 @@ function AuctionRoom({ teams, setTeams }) {
             </div>
           )}
 
-          {/* Per-owner raise inputs */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10, marginBottom: 20 }}>
-            {OWNERS.map(o => {
-              const standing = bids[o] || 0;
-              const isLeading = currentLeader && currentLeader[0] === o;
-              const highBid = currentLeader ? currentLeader[1] : 0;
-              return (
-                <div key={o} style={{
-                  background: "#0f1923", borderRadius: 10, padding: "12px 14px",
-                  border: `2px solid ${isLeading ? OWNER_COLORS[o] : standing > 0 ? OWNER_COLORS[o] + "44" : "#1e2d3d"}`,
-                }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
-                    <OwnerAvatar owner={o} size={22} />
-                    <span style={{ fontWeight: 800, color: "#e8f0fe", fontSize: 13, flex: 1 }}>{o}</span>
-                    {isLeading && <span style={{ fontSize: 10, background: OWNER_COLORS[o], color: "#000", borderRadius: 4, padding: "2px 6px", fontWeight: 900 }}>LEADING</span>}
-                  </div>
-
-                  {/* Standing bid */}
-                  <div style={{ fontSize: 13, color: standing > 0 ? OWNER_COLORS[o] : "#4a6278", fontWeight: 700, marginBottom: 8 }}>
-                    {standing > 0 ? `Standing: $${standing.toFixed(1)}` : "No bid"}
-                  </div>
-
-                  {/* Raise input */}
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <div style={{ position: "relative", flex: 1 }}>
-                      <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "#4a6278", fontWeight: 700, fontSize: 13 }}>$</span>
-                      <input
-                        type="number" min={highBid + 0.5} step="0.5"
-                        value={raises[o]}
-                        onChange={e => setRaises(prev => ({ ...prev, [o]: e.target.value }))}
-                        onKeyDown={e => e.key === "Enter" && submitRaise(o)}
-                        placeholder={standing > 0 ? "Raise..." : "Open bid..."}
-                        style={{
-                          width: "100%", background: "#0c1520",
-                          border: `1px solid ${raises[o] ? OWNER_COLORS[o] : "#1e2d3d"}`,
-                          borderRadius: 6, padding: "7px 8px 7px 20px",
-                          color: "#e8f0fe", fontSize: 14, fontWeight: 700,
-                          outline: "none", boxSizing: "border-box",
-                        }}
-                      />
+          {/* Per-owner raise inputs — admin only */}
+          {isAdmin && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10, marginBottom: 20 }}>
+              {OWNERS.map(o => {
+                const standing = bids[o] || 0;
+                const isLeading = currentLeader && currentLeader[0] === o;
+                const highBid = currentLeader ? currentLeader[1] : 0;
+                return (
+                  <div key={o} style={{
+                    background: "#0f1923", borderRadius: 10, padding: "12px 14px",
+                    border: `2px solid ${isLeading ? OWNER_COLORS[o] : standing > 0 ? OWNER_COLORS[o] + "44" : "#1e2d3d"}`,
+                  }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                      <OwnerAvatar owner={o} size={22} />
+                      <span style={{ fontWeight: 800, color: "#e8f0fe", fontSize: 13, flex: 1 }}>{o}</span>
+                      {isLeading && <span style={{ fontSize: 10, background: OWNER_COLORS[o], color: "#000", borderRadius: 4, padding: "2px 6px", fontWeight: 900 }}>LEADING</span>}
                     </div>
-                    <button
-                      onClick={() => submitRaise(o)}
-                      disabled={!raises[o]}
-                      style={{
-                        background: raises[o] ? OWNER_COLORS[o] : "#1a2636",
-                        color: raises[o] ? "#000" : "#4a6278",
-                        border: "none", borderRadius: 6, padding: "0 12px",
-                        fontWeight: 900, cursor: raises[o] ? "pointer" : "default",
-                        fontSize: 14, transition: "all 0.15s",
-                      }}
-                    >✓</button>
+                    <div style={{ fontSize: 13, color: standing > 0 ? OWNER_COLORS[o] : "#4a6278", fontWeight: 700, marginBottom: 8 }}>
+                      {standing > 0 ? `Standing: $${standing.toFixed(1)}` : "No bid"}
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <div style={{ position: "relative", flex: 1 }}>
+                        <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "#4a6278", fontWeight: 700, fontSize: 13 }}>$</span>
+                        <input
+                          type="number" min={highBid + 0.5} step="0.5"
+                          value={raises[o]}
+                          onChange={e => setRaises(prev => ({ ...prev, [o]: e.target.value }))}
+                          onKeyDown={e => e.key === "Enter" && submitRaise(o)}
+                          placeholder={standing > 0 ? "Raise..." : "Open bid..."}
+                          style={{
+                            width: "100%", background: "#0c1520",
+                            border: `1px solid ${raises[o] ? OWNER_COLORS[o] : "#1e2d3d"}`,
+                            borderRadius: 6, padding: "7px 8px 7px 20px",
+                            color: "#e8f0fe", fontSize: 14, fontWeight: 700,
+                            outline: "none", boxSizing: "border-box",
+                          }}
+                        />
+                      </div>
+                      <button
+                        onClick={() => submitRaise(o)}
+                        disabled={!raises[o]}
+                        style={{
+                          background: raises[o] ? OWNER_COLORS[o] : "#1a2636",
+                          color: raises[o] ? "#000" : "#4a6278",
+                          border: "none", borderRadius: 6, padding: "0 12px",
+                          fontWeight: 900, cursor: raises[o] ? "pointer" : "default",
+                          fontSize: 14, transition: "all 0.15s",
+                        }}
+                      >✓</button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
-          {/* Going once / twice / SOLD controls */}
+          {/* Read-only bid display for viewers */}
+          {!isAdmin && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10, marginBottom: 20 }}>
+              {OWNERS.map(o => {
+                const standing = bids[o] || 0;
+                const isLeading = currentLeader && currentLeader[0] === o;
+                return (
+                  <div key={o} style={{
+                    background: "#0f1923", borderRadius: 10, padding: "12px 14px",
+                    border: `2px solid ${isLeading ? OWNER_COLORS[o] : standing > 0 ? OWNER_COLORS[o] + "44" : "#1e2d3d"}`,
+                  }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
+                      <OwnerAvatar owner={o} size={22} />
+                      <span style={{ fontWeight: 800, color: "#e8f0fe", fontSize: 13, flex: 1 }}>{o}</span>
+                      {isLeading && <span style={{ fontSize: 10, background: OWNER_COLORS[o], color: "#000", borderRadius: 4, padding: "2px 6px", fontWeight: 900 }}>LEADING</span>}
+                    </div>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: standing > 0 ? OWNER_COLORS[o] : "#4a6278" }}>
+                      {standing > 0 ? `$${standing.toFixed(1)}` : "—"}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Going once / twice / SOLD — admin only */}
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            {goingStage === 0 && (
-              <button
-                onClick={() => setGoingStage(1)}
-                disabled={!currentLeader}
-                style={{
-                  background: currentLeader ? "#facc15" : "#1a2636",
-                  color: currentLeader ? "#000" : "#4a6278",
-                  border: "none", borderRadius: 8, padding: "12px 24px",
-                  fontSize: 15, fontWeight: 800, cursor: currentLeader ? "pointer" : "default",
-                }}>
-                Going Once…
-              </button>
-            )}
-            {goingStage === 1 && (
-              <>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#facc15" }}>Going once…</div>
-                <button onClick={() => setGoingStage(2)} style={{ background: "#f97316", color: "#fff", border: "none", borderRadius: 8, padding: "12px 24px", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
-                  Going Twice…
+          {isAdmin ? (
+            <>
+              {goingStage === 0 && (
+                <button
+                  onClick={() => setGoingStage(1)}
+                  disabled={!currentLeader}
+                  style={{
+                    background: currentLeader ? "#facc15" : "#1a2636",
+                    color: currentLeader ? "#000" : "#4a6278",
+                    border: "none", borderRadius: 8, padding: "12px 24px",
+                    fontSize: 15, fontWeight: 800, cursor: currentLeader ? "pointer" : "default",
+                  }}>
+                  Going Once…
                 </button>
-                <button onClick={() => setGoingStage(0)} style={{ background: "#1a2636", color: "#4a6278", border: "none", borderRadius: 8, padding: "12px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                  New bid came in
-                </button>
-              </>
-            )}
-            {goingStage === 2 && (
-              <>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#f97316" }}>Going twice…</div>
-                <button onClick={soldTeam} style={{ background: "#34d399", color: "#000", border: "none", borderRadius: 8, padding: "12px 28px", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
-                  🏆 SOLD
-                </button>
-                <button onClick={() => setGoingStage(0)} style={{ background: "#1a2636", color: "#4a6278", border: "none", borderRadius: 8, padding: "12px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                  New bid came in
-                </button>
-              </>
-            )}
+              )}
+              {goingStage === 1 && (
+                <>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#facc15" }}>Going once…</div>
+                  <button onClick={() => setGoingStage(2)} style={{ background: "#f97316", color: "#fff", border: "none", borderRadius: 8, padding: "12px 24px", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
+                    Going Twice…
+                  </button>
+                  <button onClick={() => setGoingStage(0)} style={{ background: "#1a2636", color: "#4a6278", border: "none", borderRadius: 8, padding: "12px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                    New bid came in
+                  </button>
+                </>
+              )}
+              {goingStage === 2 && (
+                <>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#f97316" }}>Going twice…</div>
+                  <button onClick={soldTeam} style={{ background: "#34d399", color: "#000", border: "none", borderRadius: 8, padding: "12px 28px", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
+                    🏆 SOLD
+                  </button>
+                  <button onClick={() => setGoingStage(0)} style={{ background: "#1a2636", color: "#4a6278", border: "none", borderRadius: 8, padding: "12px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                    New bid came in
+                  </button>
+                </>
+              )}
+            </>
+          ) : (
+            <div style={{ color: "#4a6278", fontSize: 14, fontWeight: 700 }}>
+              {goingStage === 1 && "⏳ Going once…"}
+              {goingStage === 2 && "⏳ Going twice…"}
+            </div>
+          )}
           </div>
         </div>
       )}
@@ -702,13 +742,17 @@ function AuctionRoom({ teams, setTeams }) {
               {last.winner} <span style={{ color: "#facc15" }}>${last.price.toFixed(1)}</span>
             </div>
             {unsoldTeams.length > 0 ? (
-              <button onClick={() => { setPhase("idle"); }} style={{
-                background: "linear-gradient(135deg, #f43f5e, #f97316)",
-                color: "#fff", border: "none", borderRadius: 10,
-                padding: "14px 36px", fontSize: 17, fontWeight: 800, cursor: "pointer",
-              }}>
-                🎲 Pick Next Team ({unsoldTeams.length} left)
-              </button>
+              isAdmin ? (
+                <button onClick={() => { setPhase("idle"); }} style={{
+                  background: "linear-gradient(135deg, #f43f5e, #f97316)",
+                  color: "#fff", border: "none", borderRadius: 10,
+                  padding: "14px 36px", fontSize: 17, fontWeight: 800, cursor: "pointer",
+                }}>
+                  🎲 Pick Next Team ({unsoldTeams.length} left)
+                </button>
+              ) : (
+                <div style={{ color: "#4a6278", fontSize: 14, fontWeight: 700 }}>⏳ Waiting for next pick… ({unsoldTeams.length} teams remaining)</div>
+              )
             ) : (
               <div style={{ color: "#34d399", fontSize: 18, fontWeight: 800 }}>🏆 Auction complete!</div>
             )}
@@ -1572,11 +1616,9 @@ export default function App() {
     { id: "leaderboard", label: "🏆 Standings" },
     { id: "bracket",     label: "🎯 Teams"     },
     { id: "live",        label: "🔴 Live"       },
+    { id: "auction",     label: "🔨 Auction"   },
     { id: "history",     label: "📜 History"   },
-    ...(isAdmin ? [
-      { id: "auction", label: "🔨 Auction" },
-      { id: "admin",   label: "⚙️ Admin"   },
-    ] : []),
+    ...(isAdmin ? [{ id: "admin", label: "⚙️ Admin" }] : []),
   ];
 
   if (dbStatus === "unconfigured") return <SetupGuide />;
@@ -1593,7 +1635,7 @@ export default function App() {
             <div>
               <div style={{ fontSize: 11, color: "#f43f5e", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase" }}>March Madness</div>
               <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.1 }}>
-                 Bracket Buster <span style={{ color: "#facc15" }}>2026</span>
+                Auction Bracket <span style={{ color: "#facc15" }}>2025</span>
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -1644,8 +1686,8 @@ export default function App() {
         {tab === "leaderboard" && <Leaderboard teams={teams} />}
         {tab === "bracket"     && <BracketView teams={teams} />}
         {tab === "live"        && <LiveScores teams={teams} />}
+        {tab === "auction"     && <AuctionRoom teams={teams} setTeams={setTeams} isAdmin={isAdmin} />}
         {tab === "history"     && <HistoryTab />}
-        {tab === "auction" && isAdmin && <AuctionRoom teams={teams} setTeams={setTeams} />}
         {tab === "admin"   && isAdmin && <AdminPanel teams={teams} setTeams={setTeams} onReset={handleReset} />}
       </div>
     </div>
