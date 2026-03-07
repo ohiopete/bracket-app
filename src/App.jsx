@@ -273,11 +273,11 @@ function Leaderboard({ teams }) {
                           <span style={{ fontSize: 10, color: "#4a6278", fontWeight: 700 }}>#{t.seed}</span>
                           <span style={{ fontSize: 13, fontWeight: 700, color: "#e8f0fe" }}>{t.name}</span>
                         </div>
-                        <div style={{ fontSize: 11, color: "#4a6278", marginTop: 2 }}>Paid ${t.price.toFixed(1)} · {t.wins}W</div>
+                        <div style={{ fontSize: 11, color: "#4a6278", marginTop: 2 }}>Paid ${t.price.toFixed(2)} · {t.wins}W</div>
                       </div>
                       <div style={{ textAlign: "right" }}>
                         <div style={{ fontSize: 14, fontWeight: 800, color: net >= 0 ? "#34d399" : "#f43f5e" }}>
-                          {net >= 0 ? "+" : ""}${net.toFixed(1)}
+                          {net >= 0 ? "+" : ""}${net.toFixed(2)}
                         </div>
                         {t.wins > 0 && <div style={{ fontSize: 10, color: "#facc15" }}>{"★".repeat(Math.min(t.wins, 6))}</div>}
                       </div>
@@ -336,13 +336,13 @@ function BracketView({ teams }) {
                         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                           <OwnerAvatar owner={t.owner} size={18} />
                           <span style={{ fontSize: 12, color: t.owner ? OWNER_COLORS[t.owner] : "#4a6278", fontWeight: 700 }}>{t.owner || "Unassigned"}</span>
-                          {t.price > 0 && <span style={{ fontSize: 11, color: "#4a6278" }}>${t.price.toFixed(1)}</span>}
+                          {t.price > 0 && <span style={{ fontSize: 11, color: "#4a6278" }}>${t.price.toFixed(2)}</span>}
                         </div>
                       </div>
                       <div style={{ textAlign: "right" }}>
                         {t.price > 0 && (
                           <div style={{ fontSize: 15, fontWeight: 900, color: net >= 0 ? "#34d399" : "#f43f5e" }}>
-                            {net >= 0 ? "+" : ""}${net.toFixed(1)}
+                            {net >= 0 ? "+" : ""}${net.toFixed(2)}
                           </div>
                         )}
                         <div style={{ fontSize: 11, color: "#4a6278" }}>{t.wins}W · ${payout}</div>
@@ -456,7 +456,7 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
     const currentHigh = Math.max(...Object.values(bids));
     if (isNaN(val) || val <= 0) return;
     if (val <= currentHigh && currentHigh > 0) {
-      alert(`Must beat current high of $${currentHigh.toFixed(1)}`);
+      alert(`Must beat current high of $${currentHigh.toFixed(2)}`);
       return;
     }
     const newBids = { ...bids, [owner]: val };
@@ -515,12 +515,12 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
                   <OwnerAvatar owner={o} size={26} />
                   <span style={{ fontWeight: 800, color: "#e8f0fe", fontSize: 13 }}>{o}</span>
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: remaining > 20 ? "#34d399" : remaining > 5 ? "#facc15" : "#f43f5e" }}>${remaining.toFixed(1)}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: remaining > 20 ? "#34d399" : remaining > 5 ? "#facc15" : "#f43f5e" }}>${remaining.toFixed(2)}</span>
               </div>
               <div style={{ background: "#1a2636", borderRadius: 4, height: 5, overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${Math.min((s / 100) * 100, 100)}%`, background: OWNER_COLORS[o], borderRadius: 4, transition: "width 0.4s" }} />
               </div>
-              <div style={{ fontSize: 11, color: "#4a6278", marginTop: 4 }}>{teams.filter(t => t.owner === o).length} teams · ${s.toFixed(1)} spent</div>
+              <div style={{ fontSize: 11, color: "#4a6278", marginTop: 4 }}>{teams.filter(t => t.owner === o).length} teams · ${s.toFixed(2)} spent</div>
             </div>
           );
         })}
@@ -625,7 +625,7 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
               <div>
                 <div style={{ fontSize: 11, color: "#4a6278", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Current High Bid</div>
                 <div style={{ fontSize: 24, fontWeight: 900, color: OWNER_COLORS[currentLeader[0]] }}>
-                  {currentLeader[0]} — <span style={{ color: "#facc15" }}>${currentLeader[1].toFixed(1)}</span>
+                  {currentLeader[0]} — <span style={{ color: "#facc15" }}>${currentLeader[1].toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -653,7 +653,7 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
                       {isLeading && <span style={{ fontSize: 10, background: OWNER_COLORS[o], color: "#000", borderRadius: 4, padding: "2px 6px", fontWeight: 900 }}>LEADING</span>}
                     </div>
                     <div style={{ fontSize: 13, color: standing > 0 ? OWNER_COLORS[o] : "#4a6278", fontWeight: 700, marginBottom: 8 }}>
-                      {standing > 0 ? `Standing: $${standing.toFixed(1)}` : "No bid"}
+                      {standing > 0 ? `Standing: $${standing.toFixed(2)}` : "No bid"}
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
                       <div style={{ position: "relative", flex: 1 }}>
@@ -708,7 +708,7 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
                       {isLeading && <span style={{ fontSize: 10, background: OWNER_COLORS[o], color: "#000", borderRadius: 4, padding: "2px 6px", fontWeight: 900 }}>LEADING</span>}
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 900, color: standing > 0 ? OWNER_COLORS[o] : "#4a6278" }}>
-                      {standing > 0 ? `$${standing.toFixed(1)}` : "—"}
+                      {standing > 0 ? `$${standing.toFixed(2)}` : "—"}
                     </div>
                   </div>
                 );
@@ -779,7 +779,7 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
             <div style={{ fontSize: 11, color: "#4a6278", marginBottom: 4 }}>#{last.seed} · {last.region}</div>
             <div style={{ fontSize: 26, fontWeight: 900, color: "#e8f0fe", marginBottom: 6 }}>{last.team}</div>
             <div style={{ fontSize: 30, fontWeight: 900, color: OWNER_COLORS[last.winner], marginBottom: 20 }}>
-              {last.winner} <span style={{ color: "#facc15" }}>${last.price.toFixed(1)}</span>
+              {last.winner} <span style={{ color: "#facc15" }}>${last.price.toFixed(2)}</span>
             </div>
             {unsoldTeams.length > 0 ? (
               isAdmin ? (
@@ -815,7 +815,7 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
                 </div>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   <span style={{ color: OWNER_COLORS[entry.winner], fontWeight: 800 }}>{entry.winner}</span>
-                  <span style={{ color: "#facc15", fontWeight: 800 }}>${entry.price.toFixed(1)}</span>
+                  <span style={{ color: "#facc15", fontWeight: 800 }}>${entry.price.toFixed(2)}</span>
                   <span style={{ fontSize: 11, color: "#4a6278" }}>{entry.time}</span>
                 </div>
               </div>
@@ -885,7 +885,7 @@ function AdminPanel({ teams, setTeams, onReset }) {
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
               <OwnerAvatar owner={t.owner} size={16} />
               <span style={{ fontSize: 12, color: t.owner ? OWNER_COLORS[t.owner] : "#4a6278" }}>{t.owner || "Unassigned"}</span>
-              {t.price > 0 && <span style={{ fontSize: 12, color: "#4a6278" }}>${t.price.toFixed(1)}</span>}
+              {t.price > 0 && <span style={{ fontSize: 12, color: "#4a6278" }}>${t.price.toFixed(2)}</span>}
             </div>
           </div>
           {editId === t.id ? (
@@ -1050,11 +1050,11 @@ function HistoryTab() {
                           <span style={{ fontSize: 10, color: "#4a6278", fontWeight: 700 }}>#{t.seed}</span>
                           <span style={{ fontSize: 13, fontWeight: 700, color: "#e8f0fe" }}>{t.name}</span>
                         </div>
-                        <div style={{ fontSize: 11, color: "#4a6278", marginTop: 2 }}>${t.price.toFixed(1)} · {t.wins}W</div>
+                        <div style={{ fontSize: 11, color: "#4a6278", marginTop: 2 }}>${t.price.toFixed(2)} · {t.wins}W</div>
                       </div>
                       <div style={{ textAlign: "right" }}>
                         <div style={{ fontSize: 14, fontWeight: 800, color: net >= 0 ? "#34d399" : "#f43f5e" }}>
-                          {net >= 0 ? "+" : ""}${net.toFixed(1)}
+                          {net >= 0 ? "+" : ""}${net.toFixed(2)}
                         </div>
                         {t.wins > 0 && <div style={{ fontSize: 10, color: "#facc15" }}>{"★".repeat(Math.min(t.wins, 6))}</div>}
                       </div>
@@ -1092,12 +1092,12 @@ function HistoryTab() {
                         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                           <OwnerAvatar owner={t.owner} size={16} />
                           <span style={{ fontSize: 11, color: OWNER_COLORS[t.owner], fontWeight: 700 }}>{t.owner}</span>
-                          <span style={{ fontSize: 11, color: "#4a6278" }}>${t.price.toFixed(1)}</span>
+                          <span style={{ fontSize: 11, color: "#4a6278" }}>${t.price.toFixed(2)}</span>
                         </div>
                       </div>
                       <div style={{ textAlign: "right" }}>
                         <div style={{ fontSize: 14, fontWeight: 900, color: net >= 0 ? "#34d399" : "#f43f5e" }}>
-                          {net >= 0 ? "+" : ""}${net.toFixed(1)}
+                          {net >= 0 ? "+" : ""}${net.toFixed(2)}
                         </div>
                         <div style={{ fontSize: 11, color: "#4a6278" }}>{t.wins}W</div>
                       </div>
@@ -1393,7 +1393,7 @@ function LiveScores({ teams }) {
                       {side.poolTeam?.owner && (
                         <div style={{ fontSize: 11, color: OWNER_COLORS[side.poolTeam.owner], fontWeight: 700, marginTop: 1 }}>
                           {side.poolTeam.owner}
-                          {side.poolTeam.price > 0 && <span style={{ color: "#4a6278", fontWeight: 500 }}> · paid ${side.poolTeam.price.toFixed(1)}</span>}
+                          {side.poolTeam.price > 0 && <span style={{ color: "#4a6278", fontWeight: 500 }}> · paid ${side.poolTeam.price.toFixed(2)}</span>}
                         </div>
                       )}
                     </div>
