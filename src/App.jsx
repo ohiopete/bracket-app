@@ -1593,7 +1593,7 @@ export default function App() {
             <div>
               <div style={{ fontSize: 11, color: "#f43f5e", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase" }}>March Madness</div>
               <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.1 }}>
-                Auction Bracket <span style={{ color: "#facc15" }}>2025</span>
+                 Bracket Buster <span style={{ color: "#facc15" }}>2026</span>
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
