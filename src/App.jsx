@@ -1570,7 +1570,7 @@ export default function App() {
 
   const TABS = [
     { id: "leaderboard", label: "🏆 Standings" },
-    { id: "bracket",     label: "🎯 Bracket"   },
+    { id: "bracket",     label: "🎯 Teams"     },
     { id: "live",        label: "🔴 Live"       },
     { id: "history",     label: "📜 History"   },
     ...(isAdmin ? [
