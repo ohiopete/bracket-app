@@ -368,61 +368,89 @@ function BracketView({ teams }) {
 
 // ── AUCTION ROOM ──────────────────────────────────────────────────────────────
 function AuctionRoom({ teams, setTeams, isAdmin }) {
-  const [pickedTeam, setPickedTeam] = useState(null);   // the team object currently up for bid
+  const [pickedTeam, setPickedTeam] = useState(null);
   const [bids, setBids] = useState({});
   const [log, setLog] = useState([]);
-  const [phase, setPhase] = useState("idle");           // idle | rolling | reveal | bidding | sold
-  const [rollIndex, setRollIndex] = useState(0);        // which team shows during slot-machine spin
+  const [phase, setPhase] = useState("idle");
+  const [rollIndex, setRollIndex] = useState(0);
+  const [raises, setRaises] = useState({});
+  const [goingStage, setGoingStage] = useState(0);
   const rollTimer = useRef(null);
   const logRef = useRef(null);
+  const isSyncing = useRef(false);
 
   useEffect(() => { if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight; }, [log]);
 
   const totalSpent = (owner) => teams.filter(t => t.owner === owner).reduce((s, t) => s + t.price, 0);
-
-  // Unsold teams (no owner assigned yet)
   const unsoldTeams = teams.filter(t => !t.owner);
+
+  // ── Load + subscribe to auction state ─────────────────────────────────────
+  useEffect(() => {
+    sb.get("auction_state", { id: 1 }).then(rows => {
+      if (rows && rows[0]) applyRemoteState(rows[0]);
+    }).catch(() => {});
+    const unsub = sb.subscribeAny("auction_state", (row) => {
+      if (!isSyncing.current) applyRemoteState(row);
+    });
+    return unsub;
+  }, []);
+
+  const applyRemoteState = (row) => {
+    setPhase(row.phase || "idle");
+    setBids(row.bids || {});
+    setGoingStage(row.going_stage || 0);
+    setLog(row.log || []);
+    if (row.team_id) {
+      const t = teams.find(t => t.id === row.team_id);
+      setPickedTeam(t || null);
+    } else {
+      setPickedTeam(null);
+    }
+  };
+
+  const pushState = async (updates) => {
+    isSyncing.current = true;
+    try {
+      await sb.upsert("auction_state", { id: 1, updated_at: new Date().toISOString(), ...updates });
+    } catch (e) { console.error("auction sync error", e); }
+    setTimeout(() => { isSyncing.current = false; }, 300);
+  };
 
   // ── Pick a random team with slot-machine animation ─────────────────────────
   const pickRandom = () => {
     if (unsoldTeams.length === 0) return;
     setPhase("rolling");
-
     const winner = unsoldTeams[Math.floor(Math.random() * unsoldTeams.length)];
     let count = 0;
-    const totalTicks = 22; // how many flips before landing
-    // Start fast, slow down near the end
+    const totalTicks = 22;
     const tick = () => {
       const progress = count / totalTicks;
-      const delay = 60 + Math.pow(progress, 2) * 540; // 60ms → 600ms
+      const delay = 60 + Math.pow(progress, 2) * 540;
       setRollIndex(Math.floor(Math.random() * unsoldTeams.length));
       count++;
       if (count < totalTicks) {
         rollTimer.current = setTimeout(tick, delay);
       } else {
-        // Land on the winner
         setPickedTeam(winner);
         setRollIndex(unsoldTeams.indexOf(winner));
         setPhase("reveal");
+        pushState({ phase: "reveal", team_id: winner.id, bids: {}, going_stage: 0 });
       }
     };
     tick();
   };
 
-  // bids = { Aaron: 12, Adam: 0, ... } — 0 means passed, positive = current standing bid
-  // raises = { Aaron: "15", ... } — what they're typing right now
-  const [raises, setRaises] = useState({});
-  const [goingStage, setGoingStage] = useState(0); // 0=bidding, 1=going once, 2=going twice
-
-  // ── Open bidding on current picked team ───────────────────────────────────
+  // ── Open bidding ───────────────────────────────────────────────────────────
   const startBidding = () => {
-    setBids(Object.fromEntries(OWNERS.map(o => [o, 0])));
+    const freshBids = Object.fromEntries(OWNERS.map(o => [o, 0]));
+    setBids(freshBids);
     setRaises(Object.fromEntries(OWNERS.map(o => [o, ""])));
     setGoingStage(0);
     setPhase("bidding");
+    pushState({ phase: "bidding", bids: freshBids, going_stage: 0 });
   };
 
-  // Commit raise for one owner — validates it beats current high
+  // ── Submit a raise ─────────────────────────────────────────────────────────
   const submitRaise = (owner) => {
     const val = parseFloat(raises[owner]);
     const currentHigh = Math.max(...Object.values(bids));
@@ -431,31 +459,43 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
       alert(`Must beat current high of $${currentHigh.toFixed(1)}`);
       return;
     }
-    setBids(prev => ({ ...prev, [owner]: val }));
+    const newBids = { ...bids, [owner]: val };
+    setBids(newBids);
     setRaises(prev => ({ ...prev, [owner]: "" }));
-    setGoingStage(0); // reset going-once if someone raises
+    setGoingStage(0);
+    pushState({ bids: newBids, going_stage: 0 });
   };
 
-  const sortedBidders = Object.entries(bids)
-    .filter(([, v]) => v > 0)
-    .sort((a, b) => b[1] - a[1]);
+  const advanceGoingStage = (stage) => {
+    setGoingStage(stage);
+    pushState({ going_stage: stage });
+  };
+
+  const sortedBidders = Object.entries(bids).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
   const currentLeader = sortedBidders[0];
 
-  // ── Award to highest bidder ───────────────────────────────────────────────
+  // ── Award to highest bidder ────────────────────────────────────────────────
   const soldTeam = () => {
     if (!currentLeader) { alert("No bids yet!"); return; }
     const [winnerOwner, winnerBid] = currentLeader;
     const allBids = sortedBidders.map(([owner, bid]) => ({ owner, bid }));
-    setTeams(prev => prev.map(t =>
-      t.id === pickedTeam.id ? { ...t, owner: winnerOwner, price: winnerBid } : t
-    ));
-    setLog(prev => [...prev, {
+    const newLog = [...log, {
       team: pickedTeam.name, seed: pickedTeam.seed, region: pickedTeam.region,
       winner: winnerOwner, price: winnerBid, allBids,
       time: new Date().toLocaleTimeString(),
-    }]);
+    }];
+    setTeams(prev => prev.map(t =>
+      t.id === pickedTeam.id ? { ...t, owner: winnerOwner, price: winnerBid } : t
+    ));
+    setLog(newLog);
     setPhase("sold");
     setPickedTeam(null);
+    pushState({ phase: "sold", team_id: null, bids: {}, going_stage: 0, log: newLog });
+  };
+
+  const resetToIdle = () => {
+    setPhase("idle");
+    pushState({ phase: "idle", team_id: null, bids: {}, going_stage: 0 });
   };
 
   const displayTeam = phase === "rolling" ? unsoldTeams[rollIndex % unsoldTeams.length] : pickedTeam;
@@ -682,7 +722,7 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
             <>
               {goingStage === 0 && (
                 <button
-                  onClick={() => setGoingStage(1)}
+                  onClick={() => advanceGoingStage(1)}
                   disabled={!currentLeader}
                   style={{
                     background: currentLeader ? "#facc15" : "#1a2636",
@@ -696,10 +736,10 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
               {goingStage === 1 && (
                 <>
                   <div style={{ fontSize: 15, fontWeight: 800, color: "#facc15" }}>Going once…</div>
-                  <button onClick={() => setGoingStage(2)} style={{ background: "#f97316", color: "#fff", border: "none", borderRadius: 8, padding: "12px 24px", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
+                  <button onClick={() => advanceGoingStage(2)} style={{ background: "#f97316", color: "#fff", border: "none", borderRadius: 8, padding: "12px 24px", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
                     Going Twice…
                   </button>
-                  <button onClick={() => setGoingStage(0)} style={{ background: "#1a2636", color: "#4a6278", border: "none", borderRadius: 8, padding: "12px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                  <button onClick={() => advanceGoingStage(0)} style={{ background: "#1a2636", color: "#4a6278", border: "none", borderRadius: 8, padding: "12px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                     New bid came in
                   </button>
                 </>
@@ -710,7 +750,7 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
                   <button onClick={soldTeam} style={{ background: "#34d399", color: "#000", border: "none", borderRadius: 8, padding: "12px 28px", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
                     🏆 SOLD
                   </button>
-                  <button onClick={() => setGoingStage(0)} style={{ background: "#1a2636", color: "#4a6278", border: "none", borderRadius: 8, padding: "12px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                  <button onClick={() => advanceGoingStage(0)} style={{ background: "#1a2636", color: "#4a6278", border: "none", borderRadius: 8, padding: "12px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                     New bid came in
                   </button>
                 </>
@@ -743,7 +783,7 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
             </div>
             {unsoldTeams.length > 0 ? (
               isAdmin ? (
-                <button onClick={() => { setPhase("idle"); }} style={{
+                <button onClick={resetToIdle} style={{
                   background: "linear-gradient(135deg, #f43f5e, #f97316)",
                   color: "#fff", border: "none", borderRadius: 10,
                   padding: "14px 36px", fontSize: 17, fontWeight: 800, cursor: "pointer",
@@ -1437,6 +1477,24 @@ const sb = {
     };
     return () => ws.close();
   },
+  // Subscribe without season filter (for auction_state)
+  subscribeAny(table, onUpdate) {
+    const wsUrl = SUPABASE_URL.replace("https://", "wss://") + "/realtime/v1/websocket?apikey=" + SUPABASE_KEY + "&vsn=1.0.0";
+    const ws = new WebSocket(wsUrl);
+    ws.onopen = () => {
+      ws.send(JSON.stringify({ topic: `realtime:*:public:${table}`, event: "phx_join", payload: { config: { broadcast: { self: false }, presence: { key: "" }, postgres_changes: [{ event: "*", schema: "public", table }] } }, ref: "2" }));
+    };
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.event === "postgres_changes" || msg.event === "INSERT" || msg.event === "UPDATE") {
+          const row = msg.payload?.data?.record ?? msg.payload?.record;
+          if (row) onUpdate(row);
+        }
+      } catch {}
+    };
+    return () => ws.close();
+  },
 };
 
 // ── SUPABASE SETUP GUIDE (shown when not yet configured) ─────────────────────
@@ -1459,7 +1517,24 @@ alter table bracket_teams enable row level security;
 create policy "allow_all" on bracket_teams for all using (true) with check (true);
 
 -- Enable Realtime
-alter publication supabase_realtime add table bracket_teams;`;
+alter publication supabase_realtime add table bracket_teams;
+
+-- Auction state (live sync for viewers)
+create table if not exists auction_state (
+  id         int primary key default 1,
+  phase      text default 'idle',
+  team_id    int,
+  bids       jsonb default '{}',
+  going_stage int default 0,
+  log        jsonb default '[]',
+  updated_at timestamptz default now()
+);
+alter table auction_state enable row level security;
+create policy "allow_all" on auction_state for all using (true) with check (true);
+alter publication supabase_realtime add table auction_state;
+
+-- Seed the single auction_state row
+insert into auction_state (id) values (1) on conflict do nothing;`;
 
   return (
     <div style={{ maxWidth: 620, margin: "40px auto", padding: "0 16px" }}>
@@ -1635,7 +1710,7 @@ export default function App() {
             <div>
               <div style={{ fontSize: 11, color: "#f43f5e", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase" }}>March Madness</div>
               <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.1 }}>
-                Auction Bracket <span style={{ color: "#facc15" }}>2025</span>
+                BracketBuster <span style={{ color: "#facc15" }}>2026</span>
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
