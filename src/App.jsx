@@ -304,6 +304,215 @@ function Leaderboard({ teams }) {
   );
 }
 
+// ── TOURNAMENT BRACKET ────────────────────────────────────────────────────────
+// Standard seed matchups per region, in display order (top to bottom)
+const SEED_PAIRS = [[1,16],[8,9],[5,12],[4,13],[6,11],[3,14],[7,10],[2,15]];
+const ROUND_NAMES = ["Round of 64","Round of 32","Sweet 16","Elite 8","Final Four","Championship","Champion"];
+
+function TeamSlot({ team, round, isWinner, isElim }) {
+  if (!team) return (
+    <div style={{
+      height: 44, borderRadius: 6, background: "#f5f5f2",
+      border: "1px dashed #e0e0da", display: "flex", alignItems: "center",
+      paddingLeft: 10, color: "#ccc", fontSize: 12,
+    }}>TBD</div>
+  );
+  const color = team.owner ? OWNER_COLORS[team.owner] : "#ccc";
+  const eliminated = isElim || (team.alive === false);
+  return (
+    <div style={{
+      height: 44, borderRadius: 6,
+      background: isWinner ? "#fff" : eliminated ? "#f9f9f8" : "#fff",
+      border: `1px solid ${isWinner ? color : "#e8e8e4"}`,
+      borderLeft: `3px solid ${isWinner ? color : eliminated ? "#e0e0da" : "#e0e0da"}`,
+      display: "flex", alignItems: "center", gap: 8, padding: "0 10px",
+      opacity: eliminated && !isWinner ? 0.45 : 1,
+      boxShadow: isWinner ? `0 1px 6px ${color}33` : "none",
+      transition: "all 0.15s",
+    }}>
+      <span style={{
+        fontSize: 10, fontWeight: 700, color: "#bbb",
+        minWidth: 16, textAlign: "center",
+      }}>{team.seed}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: 12, fontWeight: isWinner ? 800 : 600,
+          color: eliminated && !isWinner ? "#bbb" : "#1a1a18",
+          textDecoration: eliminated && !isWinner ? "line-through" : "none",
+          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+        }}>{team.name}</div>
+        {team.owner && (
+          <div style={{ fontSize: 10, color, fontWeight: 700, marginTop: 1 }}>{team.owner}</div>
+        )}
+      </div>
+      {isWinner && <div style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />}
+    </div>
+  );
+}
+
+function Matchup({ top, bottom, round }) {
+  // Determine winner based on wins count
+  const topWins = top?.wins || 0;
+  const bottomWins = bottom?.wins || 0;
+  const topAdvanced = topWins >= round;
+  const bottomAdvanced = bottomWins >= round;
+  // If both have enough wins it's ambiguous — highlight the one with more
+  const topWinner = topAdvanced && !bottomAdvanced;
+  const bottomWinner = bottomAdvanced && !topAdvanced;
+
+  return (
+    <div style={{ marginBottom: 4 }}>
+      <TeamSlot team={top} round={round} isWinner={topWinner} isElim={top && topWins < round - 1} />
+      <div style={{ height: 3 }} />
+      <TeamSlot team={bottom} round={round} isWinner={bottomWinner} isElim={bottom && bottomWins < round - 1} />
+    </div>
+  );
+}
+
+function RegionBracket({ region, teams }) {
+  const bySeeds = {};
+  teams.forEach(t => { bySeeds[t.seed] = t; });
+
+  // Build rounds: each round halves the field
+  // Round 1: 8 matchups from seed pairs
+  // Round 2: winners of (1v16 vs 8v9), (5v12 vs 4v13), (6v11 vs 3v14), (7v10 vs 2v15)
+  // etc.
+
+  // For display, derive "who appears in each slot" from wins
+  // A team appears in round R if wins >= R-1
+  const inRound = (team, r) => (team?.wins || 0) >= r - 1;
+
+  // Round 1 matchups — fixed seed pairs
+  const r1 = SEED_PAIRS.map(([s1, s2]) => ({ top: bySeeds[s1], bottom: bySeeds[s2] }));
+
+  // Round 2: group r1 matchups into pairs, winner of each advances
+  const r2 = [
+    { top: r1[0].top?.wins >= 1 ? r1[0].top : r1[0].bottom?.wins >= 1 ? r1[0].bottom : null,
+      bottom: r1[1].top?.wins >= 1 ? r1[1].top : r1[1].bottom?.wins >= 1 ? r1[1].bottom : null },
+    { top: r1[2].top?.wins >= 1 ? r1[2].top : r1[2].bottom?.wins >= 1 ? r1[2].bottom : null,
+      bottom: r1[3].top?.wins >= 1 ? r1[3].top : r1[3].bottom?.wins >= 1 ? r1[3].bottom : null },
+    { top: r1[4].top?.wins >= 1 ? r1[4].top : r1[4].bottom?.wins >= 1 ? r1[4].bottom : null,
+      bottom: r1[5].top?.wins >= 1 ? r1[5].top : r1[5].bottom?.wins >= 1 ? r1[5].bottom : null },
+    { top: r1[6].top?.wins >= 1 ? r1[6].top : r1[6].bottom?.wins >= 1 ? r1[6].bottom : null,
+      bottom: r1[7].top?.wins >= 1 ? r1[7].top : r1[7].bottom?.wins >= 1 ? r1[7].bottom : null },
+  ];
+
+  // Round 3 (Sweet 16)
+  const winner = (m, minWins) => {
+    if (m.top?.wins >= minWins) return m.top;
+    if (m.bottom?.wins >= minWins) return m.bottom;
+    return null;
+  };
+  const r3 = [
+    { top: winner(r2[0], 2), bottom: winner(r2[1], 2) },
+    { top: winner(r2[2], 2), bottom: winner(r2[3], 2) },
+  ];
+
+  // Round 4 (Elite 8)
+  const r4 = [{ top: winner(r3[0], 3), bottom: winner(r3[1], 3) }];
+
+  // Regional champ (4 wins)
+  const champ = winner(r4[0], 4);
+
+  const rounds = [
+    { name: "R64", matchups: r1, round: 1 },
+    { name: "R32", matchups: r2, round: 2 },
+    { name: "S16", matchups: r3, round: 3 },
+    { name: "E8",  matchups: r4, round: 4 },
+  ];
+
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 12 }}>
+        {region} Region
+      </div>
+      <div style={{ overflowX: "auto" }}>
+        <div style={{ display: "flex", gap: 12, minWidth: 640 }}>
+          {rounds.map(({ name, matchups, round }) => (
+            <div key={name} style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8, textAlign: "center" }}>{name}</div>
+              <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-around", height: "100%" }}>
+                {matchups.map((m, i) => (
+                  <div key={i} style={{ marginBottom: round === 1 ? 8 : round === 2 ? 24 : round === 3 ? 56 : 0 }}>
+                    <Matchup top={m.top} bottom={m.bottom} round={round} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          {/* Regional champ column */}
+          <div style={{ width: 160, flexShrink: 0 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#bbb", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8, textAlign: "center" }}>Champ</div>
+            <div style={{ marginTop: 140 }}>
+              <TeamSlot team={champ} round={4} isWinner={champ?.wins >= 4} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TournamentBracket({ teams }) {
+  // Final Four: teams with 4+ wins
+  const ff = teams.filter(t => t.wins >= 4).sort((a, b) => b.wins - a.wins);
+  // Championship game: teams with 5+ wins
+  const finalists = teams.filter(t => t.wins >= 5);
+  const champion = teams.find(t => t.wins >= 6);
+
+  // Map regions to Final Four slots (South vs West, East vs Midwest is standard)
+  const ffSouth  = ff.find(t => t.region === "South");
+  const ffWest   = ff.find(t => t.region === "West");
+  const ffEast   = ff.find(t => t.region === "East");
+  const ffMidwest= ff.find(t => t.region === "Midwest");
+
+  return (
+    <div style={{ paddingBottom: 40 }}>
+      {/* Regional brackets */}
+      {REGIONS.map(region => (
+        <RegionBracket
+          key={region}
+          region={region}
+          teams={teams.filter(t => t.region === region)}
+        />
+      ))}
+
+      {/* Final Four + Championship */}
+      <div style={{ marginTop: 8 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 12 }}>
+          Final Four & Championship
+        </div>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          {/* Semifinal 1: South vs West */}
+          <div style={{ flex: 1, minWidth: 280 }}>
+            <div style={{ fontSize: 10, color: "#bbb", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>Semifinal 1</div>
+            <Matchup top={ffSouth} bottom={ffWest} round={5} />
+          </div>
+          {/* Semifinal 2: East vs Midwest */}
+          <div style={{ flex: 1, minWidth: 280 }}>
+            <div style={{ fontSize: 10, color: "#bbb", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>Semifinal 2</div>
+            <Matchup top={ffEast} bottom={ffMidwest} round={5} />
+          </div>
+        </div>
+
+        {/* Championship */}
+        <div style={{ marginTop: 20, maxWidth: 320 }}>
+          <div style={{ fontSize: 10, color: "#bbb", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>Championship</div>
+          <Matchup top={finalists[0] || null} bottom={finalists[1] || null} round={6} />
+        </div>
+
+        {/* Champion */}
+        {champion && (
+          <div style={{ marginTop: 20, maxWidth: 320 }}>
+            <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>Champion</div>
+            <TeamSlot team={champion} round={6} isWinner={true} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── BRACKET VIEW ──────────────────────────────────────────────────────────────
 function BracketView({ teams }) {
   const [filterOwner, setFilterOwner] = useState("All");
@@ -1622,6 +1831,7 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminPw, setAdminPw] = useState("");
   const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [auctionKey, setAuctionKey] = useState(0); // increment to force AuctionRoom remount on reset
   const saveTimers = useRef({}); // per-team debounce timers keyed by team id
 
   // ── Merge DB rows into local team state ──────────────────────────────────
@@ -1685,13 +1895,17 @@ export default function App() {
   const handleReset = async () => {
     const fresh = TEAMS_2025.map(t => ({ ...t, owner: "", price: 0, wins: 0, alive: true }));
     setTeamsState(fresh);
+    setAuctionKey(k => k + 1); // force AuctionRoom to remount and clear local state
     setTab("leaderboard");
     if (!NOT_CONFIGURED && dbStatus === "ok") {
       setSyncMsg("Resetting…");
       try {
-        await Promise.all(fresh.map(t =>
-          sb.upsert("bracket_teams", { id: t.id, season: SEASON, owner: "", price: 0, wins: 0, alive: true })
-        ));
+        await Promise.all([
+          ...fresh.map(t =>
+            sb.upsert("bracket_teams", { id: t.id, season: SEASON, owner: "", price: 0, wins: 0, alive: true })
+          ),
+          sb.upsert("auction_state", { id: 1, phase: "idle", team_id: null, bids: {}, going_stage: 0, log: [] }),
+        ]);
         setSyncMsg("✓ Reset complete");
         setTimeout(() => setSyncMsg(""), 3000);
       } catch { setSyncMsg("⚠ Reset failed"); }
@@ -1701,6 +1915,7 @@ export default function App() {
   const TABS = [
     { id: "leaderboard", label: "Standings" },
     { id: "bracket",     label: "Teams"     },
+    { id: "tournament",  label: "Bracket"   },
     { id: "live",        label: "Live"      },
     { id: "auction",     label: "Auction"   },
     { id: "history",     label: "History"   },
@@ -1778,8 +1993,9 @@ export default function App() {
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 16px" }}>
         {tab === "leaderboard" && <Leaderboard teams={teams} />}
         {tab === "bracket"     && <BracketView teams={teams} />}
+        {tab === "tournament"  && <TournamentBracket teams={teams} />}
         {tab === "live"        && <LiveScores teams={teams} />}
-        {tab === "auction"     && <AuctionRoom teams={teams} setTeams={setTeams} isAdmin={isAdmin} />}
+        {tab === "auction"     && <AuctionRoom key={auctionKey} teams={teams} setTeams={setTeams} isAdmin={isAdmin} />}
         {tab === "history"     && <HistoryTab />}
         {tab === "admin"   && isAdmin && <AdminPanel teams={teams} setTeams={setTeams} onReset={handleReset} />}
       </div>
