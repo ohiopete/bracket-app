@@ -1899,16 +1899,23 @@ export default function App() {
     setTab("leaderboard");
     if (!NOT_CONFIGURED && dbStatus === "ok") {
       setSyncMsg("Resetting…");
-      try {
-        await Promise.all([
-          ...fresh.map(t =>
+      let errors = 0;
+      // Reset teams in batches of 10 to avoid overwhelming Supabase
+      const chunks = [];
+      for (let i = 0; i < fresh.length; i += 10) chunks.push(fresh.slice(i, i + 10));
+      for (const chunk of chunks) {
+        try {
+          await Promise.all(chunk.map(t =>
             sb.upsert("bracket_teams", { id: t.id, season: SEASON, owner: "", price: 0, wins: 0, alive: true })
-          ),
-          sb.upsert("auction_state", { id: 1, phase: "idle", team_id: null, bids: {}, going_stage: 0, log: [] }),
-        ]);
-        setSyncMsg("✓ Reset complete");
-        setTimeout(() => setSyncMsg(""), 3000);
-      } catch { setSyncMsg("⚠ Reset failed"); }
+          ));
+        } catch { errors++; }
+      }
+      // Reset auction state
+      try {
+        await sb.upsert("auction_state", { id: 1, phase: "idle", team_id: null, bids: {}, going_stage: 0, log: [], updated_at: new Date().toISOString() });
+      } catch { errors++; }
+      setSyncMsg(errors === 0 ? "✓ Reset complete" : `⚠ Reset partial (${errors} errors)`);
+      setTimeout(() => setSyncMsg(""), 4000);
     }
   };
 
