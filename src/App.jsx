@@ -159,7 +159,7 @@ function calcOwnerStats(teams) {
     const earned = myTeams.reduce((s, t) => s + (PAYOUTS[t.wins] || 0), 0);
     const wins = myTeams.reduce((s, t) => s + t.wins, 0);
     const roi = spent > 0 ? ((earned - spent) / spent) * 100 : 0;
-    const alive = myTeams.filter(t => t.wins > 0 && t.wins < 6).length;
+    const alive = myTeams.filter(t => t.alive !== false).length;
     return { owner, spent, earned, wins, roi, net: earned - spent, alive, teams: myTeams };
   }).sort((a, b) => b.earned - a.earned);
 }
@@ -178,15 +178,15 @@ function OwnerAvatar({ owner, size = 32 }) {
   if (!owner || !OWNER_COLORS[owner]) return (
     <div style={{
       width: size, height: size, borderRadius: "50%",
-      background: "#1a2636", border: "2px solid #2a3a4d",
+      background: "#e8e8e4", border: "2px solid #d0d0ca",
       display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: size * 0.38, fontWeight: 800, color: "#4a6278", flexShrink: 0,
+      fontSize: size * 0.38, fontWeight: 800, color: "#999", flexShrink: 0,
     }}>?</div>
   );
   return (
     <div style={{
       width: size, height: size, borderRadius: "50%",
-      background: OWNER_COLORS[owner] + "33", border: `2px solid ${OWNER_COLORS[owner]}`,
+      background: OWNER_COLORS[owner] + "22", border: `2px solid ${OWNER_COLORS[owner]}`,
       display: "flex", alignItems: "center", justifyContent: "center",
       fontSize: size * 0.38, fontWeight: 800, color: OWNER_COLORS[owner], flexShrink: 0,
     }}>{owner[0]}</div>
@@ -195,10 +195,10 @@ function OwnerAvatar({ owner, size = 32 }) {
 
 function StatCard({ label, value, sub, accent }) {
   return (
-    <div style={{ background: "#0f1923", border: "1px solid #1e2d3d", borderRadius: 10, padding: "14px 18px", flex: 1, minWidth: 100 }}>
-      <div style={{ fontSize: 11, color: "#4a6278", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 26, fontWeight: 900, color: accent || "#e8f0fe", lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 12, color: "#4a6278", marginTop: 4 }}>{sub}</div>}
+    <div style={{ background: "#1a1a18", borderRadius: 12, padding: "16px 20px", flex: 1, minWidth: 100, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
+      <div style={{ fontSize: 10, color: "#888", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
+      <div style={{ fontSize: 24, fontWeight: 900, color: accent || "#f5f5f0", lineHeight: 1, fontFamily: "'Georgia', serif" }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, color: "#666", marginTop: 4 }}>{sub}</div>}
     </div>
   );
 }
@@ -214,72 +214,77 @@ function Leaderboard({ teams }) {
   return (
     <div style={{ paddingBottom: 40 }}>
       <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 11, color: "#4a6278", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 8 }}>Season Overview</div>
+        <div style={{ fontSize: 10, color: "#999", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>Season Overview</div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <StatCard label="Total Pot" value={`$${totalPot.toFixed(0)}`} sub="Auction spend" accent="#facc15" />
-          <StatCard label="Paid Out" value={`$${totalPaid}`} sub="Winnings" accent="#34d399" />
-          <StatCard label="Teams" value={teams.length} sub="In pool" />
+          <StatCard label="Total Pot" value={`$${totalPot.toFixed(0)}`} sub="Auction spend" accent="#f59e0b" />
+          <StatCard label="Paid Out" value={`$${totalPaid}`} sub="Winnings" accent="#10b981" />
+          <StatCard label="Teams" value={teams.length} sub="In pool" accent="#f5f5f0" />
           {champ
-            ? <StatCard label="Champion" value={champ.name} sub={champ.owner ? `owned by ${champ.owner}` : "—"} accent="#facc15" />
-            : <StatCard label="Champion" value="TBD" sub="Season ongoing" accent="#4a6278" />
+            ? <StatCard label="Champion" value={champ.name} sub={champ.owner ? `owned by ${champ.owner}` : "—"} accent="#f59e0b" />
+            : <StatCard label="Champion" value="TBD" sub="Season ongoing" accent="#888" />
           }
         </div>
       </div>
 
       {stats.map((s, i) => (
         <div key={s.owner} style={{
-          background: "#0c1520", border: `1px solid ${expanded === s.owner ? OWNER_COLORS[s.owner] + "66" : "#1a2636"}`,
-          borderRadius: 12, marginBottom: 10, overflow: "hidden", transition: "border-color 0.2s",
+          background: "#fff",
+          border: `1px solid ${expanded === s.owner ? OWNER_COLORS[s.owner] + "88" : "#e8e8e4"}`,
+          borderRadius: 14, marginBottom: 8, overflow: "hidden",
+          boxShadow: expanded === s.owner ? `0 4px 20px ${OWNER_COLORS[s.owner]}22` : "0 1px 4px rgba(0,0,0,0.06)",
+          transition: "all 0.2s",
         }}>
           <div onClick={() => setExpanded(expanded === s.owner ? null : s.owner)}
             style={{ padding: "14px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ fontSize: 20, fontWeight: 900, color: "#1e2d3d", minWidth: 28, textAlign: "center" }}>{i + 1}</div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: "#ccc", minWidth: 24, textAlign: "center", fontFamily: "'Georgia', serif" }}>{i + 1}</div>
             <OwnerAvatar owner={s.owner} size={40} />
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 17, fontWeight: 800, color: "#e8f0fe" }}>{s.owner}</span>
-                {s.alive > 0 && <Badge color="#34d399">🔥 {s.alive} alive</Badge>}
+                <span style={{ fontSize: 16, fontWeight: 800, color: "#1a1a18", fontFamily: "'Georgia', serif" }}>{s.owner}</span>
+                {s.alive > 0 && <Badge color="#10b981">🔥 {s.alive} alive</Badge>}
               </div>
-              <div style={{ fontSize: 12, color: "#4a6278", marginTop: 2 }}>{s.wins} wins · {s.teams.length} teams</div>
+              <div style={{ fontSize: 12, color: "#999", marginTop: 2 }}>{s.wins} wins · {s.teams.length} teams</div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 20, fontWeight: 900, color: s.net >= 0 ? "#34d399" : "#f43f5e" }}>
+              <div style={{ fontSize: 20, fontWeight: 900, color: s.net >= 0 ? "#10b981" : "#ef4444", fontFamily: "'Georgia', serif" }}>
                 {s.net >= 0 ? "+" : ""}${s.net.toFixed(0)}
               </div>
-              <div style={{ fontSize: 11, color: "#4a6278" }}>{s.roi >= 0 ? "+" : ""}{s.roi.toFixed(0)}% ROI</div>
+              <div style={{ fontSize: 11, color: "#999" }}>{s.roi >= 0 ? "+" : ""}{s.roi.toFixed(0)}% ROI</div>
             </div>
-            <div style={{ color: "#4a6278", fontSize: 18, marginLeft: 4 }}>{expanded === s.owner ? "▲" : "▼"}</div>
+            <div style={{ color: "#ccc", fontSize: 14, marginLeft: 4 }}>{expanded === s.owner ? "▲" : "▼"}</div>
           </div>
 
           {expanded === s.owner && (
-            <div style={{ borderTop: "1px solid #1a2636", padding: "12px 18px" }}>
+            <div style={{ borderTop: "1px solid #f0f0ec", padding: "14px 18px", background: "#fafaf8" }}>
               <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
-                <StatCard label="Spent" value={`$${s.spent.toFixed(0)}`} />
-                <StatCard label="Earned" value={`$${s.earned}`} accent="#34d399" />
-                <StatCard label="Net" value={`${s.net >= 0 ? "+" : ""}$${s.net.toFixed(0)}`} accent={s.net >= 0 ? "#34d399" : "#f43f5e"} />
-                <StatCard label="ROI" value={`${s.roi.toFixed(0)}%`} accent={s.roi >= 0 ? "#34d399" : "#f43f5e"} />
+                <StatCard label="Spent" value={`$${s.spent.toFixed(0)}`} accent="#f5f5f0" />
+                <StatCard label="Earned" value={`$${s.earned}`} accent="#10b981" />
+                <StatCard label="Net" value={`${s.net >= 0 ? "+" : ""}$${s.net.toFixed(0)}`} accent={s.net >= 0 ? "#10b981" : "#ef4444"} />
+                <StatCard label="ROI" value={`${s.roi.toFixed(0)}%`} accent={s.roi >= 0 ? "#10b981" : "#ef4444"} />
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
                 {[...s.teams].sort((a, b) => b.wins - a.wins).map((t, idx) => {
                   const net = (PAYOUTS[t.wins] || 0) - t.price;
+                  const isElim = t.alive === false;
                   return (
                     <div key={idx} style={{
-                      background: "#0f1923", borderRadius: 8, padding: "10px 12px",
-                      border: `1px solid ${t.wins > 0 ? OWNER_COLORS[s.owner] + "44" : "#1e2d3d"}`,
+                      background: "#fff", borderRadius: 10, padding: "10px 12px",
+                      border: `1px solid ${t.wins > 0 && !isElim ? OWNER_COLORS[s.owner] + "44" : "#e8e8e4"}`,
                       display: "flex", justifyContent: "space-between", alignItems: "center",
+                      opacity: isElim ? 0.5 : 1,
                     }}>
                       <div>
                         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                          <span style={{ fontSize: 10, color: "#4a6278", fontWeight: 700 }}>#{t.seed}</span>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: "#e8f0fe" }}>{t.name}</span>
+                          <span style={{ fontSize: 10, color: "#bbb", fontWeight: 700 }}>#{t.seed}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: isElim ? "#bbb" : "#1a1a18", textDecoration: isElim ? "line-through" : "none" }}>{t.name}</span>
                         </div>
-                        <div style={{ fontSize: 11, color: "#4a6278", marginTop: 2 }}>Paid ${t.price.toFixed(2)} · {t.wins}W</div>
+                        <div style={{ fontSize: 11, color: "#999", marginTop: 2 }}>Paid ${t.price.toFixed(2)} · {t.wins}W</div>
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: net >= 0 ? "#34d399" : "#f43f5e" }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: net >= 0 ? "#10b981" : "#ef4444" }}>
                           {net >= 0 ? "+" : ""}${net.toFixed(2)}
                         </div>
-                        {t.wins > 0 && <div style={{ fontSize: 10, color: "#facc15" }}>{"★".repeat(Math.min(t.wins, 6))}</div>}
+                        {t.wins > 0 && <div style={{ fontSize: 10, color: "#f59e0b" }}>{"★".repeat(Math.min(t.wins, 6))}</div>}
                       </div>
                     </div>
                   );
@@ -298,13 +303,16 @@ function BracketView({ teams }) {
   const [filterOwner, setFilterOwner] = useState("All");
   return (
     <div style={{ paddingBottom: 40 }}>
-      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
         {["All", ...OWNERS].map(o => (
           <button key={o} onClick={() => setFilterOwner(o)} style={{
-            padding: "6px 14px", borderRadius: 20, border: "none", cursor: "pointer",
-            background: filterOwner === o ? (OWNER_COLORS[o] || "#e8f0fe") : "#0f1923",
-            color: filterOwner === o ? "#000" : "#4a6278",
+            padding: "6px 16px", borderRadius: 20,
+            border: filterOwner === o ? "none" : "1px solid #e0e0da",
+            cursor: "pointer",
+            background: filterOwner === o ? (OWNER_COLORS[o] || "#1a1a18") : "#fff",
+            color: filterOwner === o ? (o === "All" ? "#fff" : "#000") : "#888",
             fontWeight: 700, fontSize: 13, transition: "all 0.15s",
+            boxShadow: filterOwner === o ? `0 2px 8px ${(OWNER_COLORS[o] || "#000")}44` : "none",
           }}>{o}</button>
         ))}
       </div>
@@ -313,45 +321,48 @@ function BracketView({ teams }) {
         if (regionTeams.length === 0) return null;
         return (
           <div key={region} style={{ marginBottom: 28 }}>
-            <div style={{ fontSize: 11, color: "#4a6278", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 10 }}>{region} Region</div>
+            <div style={{ fontSize: 10, color: "#999", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>{region} Region</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8 }}>
               {regionTeams.map((t, idx) => {
                 const payout = PAYOUTS[t.wins] || 0;
                 const net = payout - t.price;
+                const isElim = t.alive === false;
                 return (
                   <div key={idx} style={{
-                    background: "#0c1520",
-                    border: `1px solid ${t.wins > 0 ? (OWNER_COLORS[t.owner] || "#facc15") + "55" : "#1a2636"}`,
-                    borderLeft: `3px solid ${t.wins > 0 ? (OWNER_COLORS[t.owner] || "#facc15") : "#1a2636"}`,
+                    background: "#fff",
+                    border: `1px solid ${isElim ? "#eee" : t.wins > 0 ? (OWNER_COLORS[t.owner] || "#f59e0b") + "55" : "#e8e8e4"}`,
+                    borderLeft: `3px solid ${isElim ? "#e0e0da" : t.wins > 0 ? (OWNER_COLORS[t.owner] || "#f59e0b") : "#e0e0da"}`,
                     borderRadius: 8, padding: "10px 14px",
-                    opacity: filterOwner !== "All" && t.owner !== filterOwner ? 0.3 : 1,
+                    opacity: isElim ? 0.45 : filterOwner !== "All" && t.owner !== filterOwner ? 0.3 : 1,
                     transition: "opacity 0.2s",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
                   }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div>
                         <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 3 }}>
-                          <span style={{ fontSize: 11, background: "#1a2636", color: "#4a6278", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>{t.seed}</span>
-                          <span style={{ fontSize: 14, fontWeight: 800, color: "#e8f0fe" }}>{t.name}</span>
+                          <span style={{ fontSize: 11, background: "#f0f0ec", color: "#999", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>{t.seed}</span>
+                          <span style={{ fontSize: 14, fontWeight: 800, color: isElim ? "#bbb" : "#1a1a18", textDecoration: isElim ? "line-through" : "none" }}>{t.name}</span>
+                          {isElim && <span style={{ fontSize: 10, background: "#fee2e2", color: "#ef4444", border: "1px solid #fecaca", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>ELIM</span>}
                         </div>
                         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                           <OwnerAvatar owner={t.owner} size={18} />
-                          <span style={{ fontSize: 12, color: t.owner ? OWNER_COLORS[t.owner] : "#4a6278", fontWeight: 700 }}>{t.owner || "Unassigned"}</span>
-                          {t.price > 0 && <span style={{ fontSize: 11, color: "#4a6278" }}>${t.price.toFixed(2)}</span>}
+                          <span style={{ fontSize: 12, color: t.owner ? OWNER_COLORS[t.owner] : "#bbb", fontWeight: 700 }}>{t.owner || "Unassigned"}</span>
+                          {t.price > 0 && <span style={{ fontSize: 11, color: "#bbb" }}>${t.price.toFixed(2)}</span>}
                         </div>
                       </div>
                       <div style={{ textAlign: "right" }}>
                         {t.price > 0 && (
-                          <div style={{ fontSize: 15, fontWeight: 900, color: net >= 0 ? "#34d399" : "#f43f5e" }}>
+                          <div style={{ fontSize: 15, fontWeight: 900, color: net >= 0 ? "#10b981" : "#ef4444" }}>
                             {net >= 0 ? "+" : ""}${net.toFixed(2)}
                           </div>
                         )}
-                        <div style={{ fontSize: 11, color: "#4a6278" }}>{t.wins}W · ${payout}</div>
+                        <div style={{ fontSize: 11, color: "#bbb" }}>{t.wins}W · ${payout}</div>
                       </div>
                     </div>
                     {t.wins > 0 && (
                       <div style={{ marginTop: 8, display: "flex", gap: 3 }}>
                         {[1,2,3,4,5,6].map(r => (
-                          <div key={r} style={{ flex: 1, height: 4, borderRadius: 2, background: r <= t.wins ? (OWNER_COLORS[t.owner] || "#facc15") : "#1a2636" }} />
+                          <div key={r} style={{ flex: 1, height: 3, borderRadius: 2, background: r <= t.wins ? (OWNER_COLORS[t.owner] || "#f59e0b") : "#f0f0ec" }} />
                         ))}
                       </div>
                     )}
@@ -509,18 +520,18 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
           const s = totalSpent(o);
           const remaining = 100 - s;
           return (
-            <div key={o} style={{ background: "#0c1520", border: "1px solid #1a2636", borderRadius: 10, padding: "12px 16px" }}>
+            <div key={o} style={{ background: "#1a1a18", borderRadius: 12, padding: "12px 16px", boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <OwnerAvatar owner={o} size={26} />
-                  <span style={{ fontWeight: 800, color: "#e8f0fe", fontSize: 13 }}>{o}</span>
+                  <span style={{ fontWeight: 800, color: "#f5f5f0", fontSize: 13 }}>{o}</span>
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: remaining > 20 ? "#34d399" : remaining > 5 ? "#facc15" : "#f43f5e" }}>${remaining.toFixed(2)}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: remaining > 20 ? "#10b981" : remaining > 5 ? "#f59e0b" : "#ef4444" }}>${remaining.toFixed(2)}</span>
               </div>
-              <div style={{ background: "#1a2636", borderRadius: 4, height: 5, overflow: "hidden" }}>
+              <div style={{ background: "#2a2a26", borderRadius: 4, height: 4, overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${Math.min((s / 100) * 100, 100)}%`, background: OWNER_COLORS[o], borderRadius: 4, transition: "width 0.4s" }} />
               </div>
-              <div style={{ fontSize: 11, color: "#4a6278", marginTop: 4 }}>{teams.filter(t => t.owner === o).length} teams · ${s.toFixed(2)} spent</div>
+              <div style={{ fontSize: 11, color: "#666", marginTop: 4 }}>{teams.filter(t => t.owner === o).length} teams · ${s.toFixed(2)} spent</div>
             </div>
           );
         })}
@@ -528,27 +539,27 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
 
       {/* ── IDLE: big Pick button (admin) or waiting message (viewer) ── */}
       {phase === "idle" && (
-        <div style={{ textAlign: "center", padding: "32px 0" }}>
+        <div style={{ textAlign: "center", padding: "40px 0" }}>
           {unsoldTeams.length === 0 ? (
-            <div style={{ color: "#34d399", fontSize: 20, fontWeight: 800 }}>🏆 All {teams.length} teams have been auctioned!</div>
+            <div style={{ color: "#10b981", fontSize: 20, fontWeight: 800, fontFamily: "'Georgia', serif" }}>🏆 All {teams.length} teams have been auctioned!</div>
           ) : isAdmin ? (
             <>
-              <div style={{ fontSize: 13, color: "#4a6278", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 20 }}>
+              <div style={{ fontSize: 11, color: "#999", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 20 }}>
                 {unsoldTeams.length} teams remaining
               </div>
               <button onClick={pickRandom} style={{
-                background: "linear-gradient(135deg, #f43f5e, #f97316)",
-                color: "#fff", border: "none", borderRadius: 14, padding: "20px 48px",
-                fontSize: 22, fontWeight: 900, cursor: "pointer", letterSpacing: "0.02em",
-                boxShadow: "0 0 32px #f43f5e44",
+                background: "#1a1a18", color: "#fff", border: "none",
+                borderRadius: 50, padding: "18px 48px",
+                fontSize: 18, fontWeight: 800, cursor: "pointer",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
               }}>
                 🎲 Pick Next Team
               </button>
             </>
           ) : (
-            <div style={{ color: "#4a6278", fontSize: 16, fontWeight: 700 }}>
+            <div style={{ color: "#999", fontSize: 15, fontWeight: 600 }}>
               ⏳ Waiting for next team to be drawn…
-              <div style={{ fontSize: 13, marginTop: 8 }}>{unsoldTeams.length} teams remaining</div>
+              <div style={{ fontSize: 13, marginTop: 8, color: "#bbb" }}>{unsoldTeams.length} teams remaining</div>
             </div>
           )}
         </div>
@@ -557,63 +568,56 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
       {/* ── ROLLING / REVEAL: slot machine display ── */}
       {(phase === "rolling" || phase === "reveal") && displayTeam && (
         <div style={{
-          background: "#0c1520",
-          border: `2px solid ${phase === "reveal" ? "#facc15" : "#1a2636"}`,
+          background: "#1a1a18",
+          border: `2px solid ${phase === "reveal" ? "#f59e0b" : "#2a2a26"}`,
           borderRadius: 16, padding: "28px 24px", marginBottom: 20, textAlign: "center",
           transition: "border-color 0.3s",
-          boxShadow: phase === "reveal" ? "0 0 40px #facc1533" : "none",
+          boxShadow: phase === "reveal" ? "0 8px 40px rgba(245,158,11,0.2)" : "0 4px 20px rgba(0,0,0,0.15)",
         }}>
-          <div style={{ fontSize: 11, color: "#4a6278", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 12 }}>
-            {phase === "rolling" ? "🎰 Drawing..." : "🎯 Next Up"}
+          <div style={{ fontSize: 10, color: "#666", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 12 }}>
+            {phase === "rolling" ? "🎰 Drawing..." : "⭐ Up for Auction"}
           </div>
-
-          {/* Seed badge */}
           <div style={{
-            display: "inline-block", background: "#1a2636", border: "1px solid #2a3a4a",
-            borderRadius: 8, padding: "4px 14px", fontSize: 13, fontWeight: 800,
-            color: "#94a3b8", marginBottom: 12,
+            display: "inline-block", background: "#2a2a26",
+            borderRadius: 8, padding: "4px 14px", fontSize: 13, fontWeight: 700,
+            color: "#888", marginBottom: 12,
           }}>
             #{displayTeam.seed} · {displayTeam.region}
           </div>
-
-          {/* Team name — blurs while spinning */}
           <div style={{
-            fontSize: 34, fontWeight: 900, color: "#e8f0fe", marginBottom: 6,
+            fontSize: 34, fontWeight: 900, color: "#f5f5f0", marginBottom: 6,
+            fontFamily: "'Georgia', serif",
             filter: phase === "rolling" ? "blur(3px)" : "none",
-            transition: "filter 0.2s",
-            minHeight: 44,
+            transition: "filter 0.2s", minHeight: 44,
           }}>
             {displayTeam.name}
           </div>
-
           {phase === "reveal" && isAdmin && (
             <button onClick={startBidding} style={{
-              marginTop: 20, background: "#f43f5e", color: "#fff", border: "none",
-              borderRadius: 10, padding: "14px 36px", fontSize: 17, fontWeight: 800, cursor: "pointer",
+              marginTop: 20, background: "#f5f5f0", color: "#1a1a18", border: "none",
+              borderRadius: 50, padding: "14px 36px", fontSize: 16, fontWeight: 800, cursor: "pointer",
+              boxShadow: "0 2px 12px rgba(255,255,255,0.1)",
             }}>
               🔨 Open Bidding
             </button>
           )}
           {phase === "reveal" && !isAdmin && (
-            <div style={{ marginTop: 16, color: "#4a6278", fontSize: 14, fontWeight: 700 }}>⏳ Waiting for bidding to open…</div>
+            <div style={{ marginTop: 16, color: "#666", fontSize: 14, fontWeight: 600 }}>⏳ Waiting for bidding to open…</div>
           )}
         </div>
       )}
 
-      {/* ── BIDDING: live raise rounds ── */}
+      {/* ── BIDDING ── */}
       {phase === "bidding" && pickedTeam && (
-        <div style={{ background: "#0c1520", border: "2px solid #f43f5e55", borderRadius: 12, padding: 20, marginBottom: 20 }}>
-
-          {/* Header */}
+        <div style={{ background: "#1a1a18", borderRadius: 16, padding: 20, marginBottom: 20, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
-            <div style={{ background: "#f43f5e", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 800, color: "#fff", textTransform: "uppercase" }}>Bidding</div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: "#e8f0fe" }}>
+            <div style={{ background: "#f5f5f022", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 800, color: "#f5f5f0", textTransform: "uppercase", border: "1px solid #f5f5f033" }}>Live Bidding</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: "#f5f5f0", fontFamily: "'Georgia', serif" }}>
               #{pickedTeam.seed} {pickedTeam.name}
-              <span style={{ color: "#4a6278", fontWeight: 500, fontSize: 15 }}> · {pickedTeam.region}</span>
+              <span style={{ color: "#666", fontWeight: 500, fontSize: 14 }}> · {pickedTeam.region}</span>
             </div>
           </div>
 
-          {/* Current high bid banner */}
           {currentLeader ? (
             <div style={{
               background: `${OWNER_COLORS[currentLeader[0]]}18`,
@@ -623,14 +627,14 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
             }}>
               <OwnerAvatar owner={currentLeader[0]} size={32} />
               <div>
-                <div style={{ fontSize: 11, color: "#4a6278", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Current High Bid</div>
-                <div style={{ fontSize: 24, fontWeight: 900, color: OWNER_COLORS[currentLeader[0]] }}>
-                  {currentLeader[0]} — <span style={{ color: "#facc15" }}>${currentLeader[1].toFixed(2)}</span>
+                <div style={{ fontSize: 10, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Current High Bid</div>
+                <div style={{ fontSize: 22, fontWeight: 900, color: OWNER_COLORS[currentLeader[0]], fontFamily: "'Georgia', serif" }}>
+                  {currentLeader[0]} — <span style={{ color: "#f59e0b" }}>${currentLeader[1].toFixed(2)}</span>
                 </div>
               </div>
             </div>
           ) : (
-            <div style={{ background: "#0f1923", borderRadius: 10, padding: "12px 18px", marginBottom: 18, color: "#4a6278", fontWeight: 700, fontSize: 14 }}>
+            <div style={{ background: "#2a2a26", borderRadius: 10, padding: "12px 18px", marginBottom: 18, color: "#666", fontWeight: 600, fontSize: 14 }}>
               No bids yet — enter opening bids below
             </div>
           )}
@@ -644,20 +648,20 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
                 const highBid = currentLeader ? currentLeader[1] : 0;
                 return (
                   <div key={o} style={{
-                    background: "#0f1923", borderRadius: 10, padding: "12px 14px",
-                    border: `2px solid ${isLeading ? OWNER_COLORS[o] : standing > 0 ? OWNER_COLORS[o] + "44" : "#1e2d3d"}`,
+                    background: "#222220", borderRadius: 10, padding: "12px 14px",
+                    border: `2px solid ${isLeading ? OWNER_COLORS[o] : standing > 0 ? OWNER_COLORS[o] + "44" : "#333"}`,
                   }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                       <OwnerAvatar owner={o} size={22} />
-                      <span style={{ fontWeight: 800, color: "#e8f0fe", fontSize: 13, flex: 1 }}>{o}</span>
+                      <span style={{ fontWeight: 800, color: "#f5f5f0", fontSize: 13, flex: 1 }}>{o}</span>
                       {isLeading && <span style={{ fontSize: 10, background: OWNER_COLORS[o], color: "#000", borderRadius: 4, padding: "2px 6px", fontWeight: 900 }}>LEADING</span>}
                     </div>
-                    <div style={{ fontSize: 13, color: standing > 0 ? OWNER_COLORS[o] : "#4a6278", fontWeight: 700, marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, color: standing > 0 ? OWNER_COLORS[o] : "#666", fontWeight: 700, marginBottom: 8 }}>
                       {standing > 0 ? `Standing: $${standing.toFixed(2)}` : "No bid"}
                     </div>
                     <div style={{ display: "flex", gap: 6 }}>
                       <div style={{ position: "relative", flex: 1 }}>
-                        <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "#4a6278", fontWeight: 700, fontSize: 13 }}>$</span>
+                        <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "#666", fontWeight: 700, fontSize: 13 }}>$</span>
                         <input
                           type="number" min={highBid + 0.5} step="0.5"
                           value={raises[o]}
@@ -665,25 +669,21 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
                           onKeyDown={e => e.key === "Enter" && submitRaise(o)}
                           placeholder={standing > 0 ? "Raise..." : "Open bid..."}
                           style={{
-                            width: "100%", background: "#0c1520",
-                            border: `1px solid ${raises[o] ? OWNER_COLORS[o] : "#1e2d3d"}`,
+                            width: "100%", background: "#1a1a18",
+                            border: `1px solid ${raises[o] ? OWNER_COLORS[o] : "#333"}`,
                             borderRadius: 6, padding: "7px 8px 7px 20px",
-                            color: "#e8f0fe", fontSize: 14, fontWeight: 700,
+                            color: "#f5f5f0", fontSize: 14, fontWeight: 700,
                             outline: "none", boxSizing: "border-box",
                           }}
                         />
                       </div>
-                      <button
-                        onClick={() => submitRaise(o)}
-                        disabled={!raises[o]}
-                        style={{
-                          background: raises[o] ? OWNER_COLORS[o] : "#1a2636",
-                          color: raises[o] ? "#000" : "#4a6278",
-                          border: "none", borderRadius: 6, padding: "0 12px",
-                          fontWeight: 900, cursor: raises[o] ? "pointer" : "default",
-                          fontSize: 14, transition: "all 0.15s",
-                        }}
-                      >✓</button>
+                      <button onClick={() => submitRaise(o)} disabled={!raises[o]} style={{
+                        background: raises[o] ? OWNER_COLORS[o] : "#333",
+                        color: raises[o] ? "#000" : "#666",
+                        border: "none", borderRadius: 6, padding: "0 12px",
+                        fontWeight: 900, cursor: raises[o] ? "pointer" : "default",
+                        fontSize: 14, transition: "all 0.15s",
+                      }}>✓</button>
                     </div>
                   </div>
                 );
@@ -699,15 +699,15 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
                 const isLeading = currentLeader && currentLeader[0] === o;
                 return (
                   <div key={o} style={{
-                    background: "#0f1923", borderRadius: 10, padding: "12px 14px",
-                    border: `2px solid ${isLeading ? OWNER_COLORS[o] : standing > 0 ? OWNER_COLORS[o] + "44" : "#1e2d3d"}`,
+                    background: "#222220", borderRadius: 10, padding: "12px 14px",
+                    border: `2px solid ${isLeading ? OWNER_COLORS[o] : standing > 0 ? OWNER_COLORS[o] + "44" : "#333"}`,
                   }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                       <OwnerAvatar owner={o} size={22} />
-                      <span style={{ fontWeight: 800, color: "#e8f0fe", fontSize: 13, flex: 1 }}>{o}</span>
+                      <span style={{ fontWeight: 800, color: "#f5f5f0", fontSize: 13, flex: 1 }}>{o}</span>
                       {isLeading && <span style={{ fontSize: 10, background: OWNER_COLORS[o], color: "#000", borderRadius: 4, padding: "2px 6px", fontWeight: 900 }}>LEADING</span>}
                     </div>
-                    <div style={{ fontSize: 18, fontWeight: 900, color: standing > 0 ? OWNER_COLORS[o] : "#4a6278" }}>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: standing > 0 ? OWNER_COLORS[o] : "#555", fontFamily: "'Georgia', serif" }}>
                       {standing > 0 ? `$${standing.toFixed(2)}` : "—"}
                     </div>
                   </div>
@@ -716,48 +716,35 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
             </div>
           )}
 
-          {/* Going once / twice / SOLD — admin only */}
+          {/* Going once / twice / SOLD */}
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           {isAdmin ? (
             <>
               {goingStage === 0 && (
-                <button
-                  onClick={() => advanceGoingStage(1)}
-                  disabled={!currentLeader}
-                  style={{
-                    background: currentLeader ? "#facc15" : "#1a2636",
-                    color: currentLeader ? "#000" : "#4a6278",
-                    border: "none", borderRadius: 8, padding: "12px 24px",
-                    fontSize: 15, fontWeight: 800, cursor: currentLeader ? "pointer" : "default",
-                  }}>
-                  Going Once…
-                </button>
+                <button onClick={() => advanceGoingStage(1)} disabled={!currentLeader} style={{
+                  background: currentLeader ? "#f5f5f0" : "#2a2a26",
+                  color: currentLeader ? "#1a1a18" : "#555",
+                  border: "none", borderRadius: 50, padding: "12px 24px",
+                  fontSize: 14, fontWeight: 800, cursor: currentLeader ? "pointer" : "default",
+                }}>Going Once…</button>
               )}
               {goingStage === 1 && (
                 <>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#facc15" }}>Going once…</div>
-                  <button onClick={() => advanceGoingStage(2)} style={{ background: "#f97316", color: "#fff", border: "none", borderRadius: 8, padding: "12px 24px", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
-                    Going Twice…
-                  </button>
-                  <button onClick={() => advanceGoingStage(0)} style={{ background: "#1a2636", color: "#4a6278", border: "none", borderRadius: 8, padding: "12px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                    New bid came in
-                  </button>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#f59e0b" }}>Going once…</div>
+                  <button onClick={() => advanceGoingStage(2)} style={{ background: "#f59e0b", color: "#000", border: "none", borderRadius: 50, padding: "12px 24px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>Going Twice…</button>
+                  <button onClick={() => advanceGoingStage(0)} style={{ background: "#2a2a26", color: "#888", border: "none", borderRadius: 50, padding: "12px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>New bid came in</button>
                 </>
               )}
               {goingStage === 2 && (
                 <>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#f97316" }}>Going twice…</div>
-                  <button onClick={soldTeam} style={{ background: "#34d399", color: "#000", border: "none", borderRadius: 8, padding: "12px 28px", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>
-                    🏆 SOLD
-                  </button>
-                  <button onClick={() => advanceGoingStage(0)} style={{ background: "#1a2636", color: "#4a6278", border: "none", borderRadius: 8, padding: "12px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                    New bid came in
-                  </button>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: "#f59e0b" }}>Going twice…</div>
+                  <button onClick={soldTeam} style={{ background: "#10b981", color: "#000", border: "none", borderRadius: 50, padding: "12px 28px", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>🏆 SOLD</button>
+                  <button onClick={() => advanceGoingStage(0)} style={{ background: "#2a2a26", color: "#888", border: "none", borderRadius: 50, padding: "12px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>New bid came in</button>
                 </>
               )}
             </>
           ) : (
-            <div style={{ color: "#4a6278", fontSize: 14, fontWeight: 700 }}>
+            <div style={{ color: "#888", fontSize: 14, fontWeight: 600 }}>
               {goingStage === 1 && "⏳ Going once…"}
               {goingStage === 2 && "⏳ Going twice…"}
             </div>
@@ -766,35 +753,35 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
         </div>
       )}
 
-      {/* ── SOLD: winner announcement + pick next ── */}
+      {/* ── SOLD ── */}
       {phase === "sold" && log.length > 0 && (() => {
         const last = log[log.length - 1];
         return (
           <div style={{
-            background: "#0c1520", border: `2px solid ${OWNER_COLORS[last.winner]}55`,
-            borderRadius: 12, padding: 28, marginBottom: 20, textAlign: "center",
-            boxShadow: `0 0 40px ${OWNER_COLORS[last.winner]}22`,
+            background: "#1a1a18",
+            border: `2px solid ${OWNER_COLORS[last.winner]}44`,
+            borderRadius: 16, padding: 28, marginBottom: 20, textAlign: "center",
+            boxShadow: `0 8px 40px ${OWNER_COLORS[last.winner]}22`,
           }}>
-            <div style={{ fontSize: 12, color: "#4a6278", marginBottom: 8, textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.1em" }}>SOLD!</div>
-            <div style={{ fontSize: 11, color: "#4a6278", marginBottom: 4 }}>#{last.seed} · {last.region}</div>
-            <div style={{ fontSize: 26, fontWeight: 900, color: "#e8f0fe", marginBottom: 6 }}>{last.team}</div>
-            <div style={{ fontSize: 30, fontWeight: 900, color: OWNER_COLORS[last.winner], marginBottom: 20 }}>
-              {last.winner} <span style={{ color: "#facc15" }}>${last.price.toFixed(2)}</span>
+            <div style={{ fontSize: 10, color: "#666", marginBottom: 8, textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.12em" }}>Sold</div>
+            <div style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>#{last.seed} · {last.region}</div>
+            <div style={{ fontSize: 26, fontWeight: 900, color: "#f5f5f0", marginBottom: 6, fontFamily: "'Georgia', serif" }}>{last.team}</div>
+            <div style={{ fontSize: 28, fontWeight: 900, color: OWNER_COLORS[last.winner], marginBottom: 20, fontFamily: "'Georgia', serif" }}>
+              {last.winner} <span style={{ color: "#f59e0b" }}>${last.price.toFixed(2)}</span>
             </div>
             {unsoldTeams.length > 0 ? (
               isAdmin ? (
                 <button onClick={resetToIdle} style={{
-                  background: "linear-gradient(135deg, #f43f5e, #f97316)",
-                  color: "#fff", border: "none", borderRadius: 10,
-                  padding: "14px 36px", fontSize: 17, fontWeight: 800, cursor: "pointer",
+                  background: "#f5f5f0", color: "#1a1a18", border: "none",
+                  borderRadius: 50, padding: "14px 36px", fontSize: 16, fontWeight: 800, cursor: "pointer",
                 }}>
                   🎲 Pick Next Team ({unsoldTeams.length} left)
                 </button>
               ) : (
-                <div style={{ color: "#4a6278", fontSize: 14, fontWeight: 700 }}>⏳ Waiting for next pick… ({unsoldTeams.length} teams remaining)</div>
+                <div style={{ color: "#666", fontSize: 14, fontWeight: 600 }}>⏳ Waiting for next pick… ({unsoldTeams.length} remaining)</div>
               )
             ) : (
-              <div style={{ color: "#34d399", fontSize: 18, fontWeight: 800 }}>🏆 Auction complete!</div>
+              <div style={{ color: "#10b981", fontSize: 18, fontWeight: 800, fontFamily: "'Georgia', serif" }}>🏆 Auction complete!</div>
             )}
           </div>
         );
@@ -802,21 +789,21 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
 
       {/* ── Auction Log ── */}
       {log.length > 0 && (
-        <div style={{ background: "#0c1520", border: "1px solid #1a2636", borderRadius: 12, overflow: "hidden" }}>
-          <div style={{ padding: "14px 18px", borderBottom: "1px solid #1a2636", fontSize: 12, color: "#4a6278", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        <div style={{ background: "#fff", border: "1px solid #e8e8e4", borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+          <div style={{ padding: "14px 18px", borderBottom: "1px solid #f0f0ec", fontSize: 11, color: "#999", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>
             Auction Log · {log.length} sold
           </div>
           <div ref={logRef} style={{ maxHeight: 300, overflowY: "auto" }}>
             {[...log].reverse().map((entry, i) => (
-              <div key={i} style={{ padding: "12px 18px", borderBottom: "1px solid #0f1923", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div key={i} style={{ padding: "12px 18px", borderBottom: "1px solid #f5f5f2", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <span style={{ fontSize: 11, color: "#4a6278", marginRight: 8 }}>#{entry.seed} · {entry.region}</span>
-                  <span style={{ fontWeight: 700, color: "#e8f0fe" }}>{entry.team}</span>
+                  <span style={{ fontSize: 11, color: "#bbb", marginRight: 8 }}>#{entry.seed} · {entry.region}</span>
+                  <span style={{ fontWeight: 700, color: "#1a1a18" }}>{entry.team}</span>
                 </div>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   <span style={{ color: OWNER_COLORS[entry.winner], fontWeight: 800 }}>{entry.winner}</span>
-                  <span style={{ color: "#facc15", fontWeight: 800 }}>${entry.price.toFixed(2)}</span>
-                  <span style={{ fontSize: 11, color: "#4a6278" }}>{entry.time}</span>
+                  <span style={{ color: "#f59e0b", fontWeight: 800 }}>${entry.price.toFixed(2)}</span>
+                  <span style={{ fontSize: 11, color: "#bbb" }}>{entry.time}</span>
                 </div>
               </div>
             ))}
@@ -842,75 +829,92 @@ function AdminPanel({ teams, setTeams, onReset }) {
   return (
     <div style={{ paddingBottom: 40 }}>
       {/* Reset block */}
-      <div style={{ background: "#0c1520", border: "1px solid #2a1a1a", borderRadius: 12, padding: 20, marginBottom: 24 }}>
-        <div style={{ fontSize: 13, color: "#f43f5e", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 8 }}>⚠ Reset Season</div>
-        <div style={{ fontSize: 13, color: "#4a6278", marginBottom: 14 }}>
+      <div style={{ background: "#fff", border: "1px solid #fecaca", borderRadius: 12, padding: 20, marginBottom: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+        <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>⚠ Reset Season</div>
+        <div style={{ fontSize: 13, color: "#999", marginBottom: 14 }}>
           Clears all owner assignments, prices, and win totals so you can run a fresh auction for a new year. Cannot be undone.
         </div>
         {!showResetConfirm ? (
           <button onClick={() => setShowResetConfirm(true)}
-            style={{ background: "#2a1a1a", color: "#f43f5e", border: "1px solid #f43f5e44", borderRadius: 8, padding: "10px 20px", fontWeight: 800, cursor: "pointer", fontSize: 13 }}>
+            style={{ background: "#fff", color: "#ef4444", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 20px", fontWeight: 800, cursor: "pointer", fontSize: 13 }}>
             Reset for New Season
           </button>
         ) : (
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontSize: 13, color: "#e8f0fe" }}>Are you sure? This cannot be undone.</span>
+            <span style={{ fontSize: 13, color: "#666" }}>Are you sure? This cannot be undone.</span>
             <button onClick={() => { onReset(); setShowResetConfirm(false); }}
-              style={{ background: "#f43f5e", color: "#fff", border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, cursor: "pointer" }}>
+              style={{ background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, cursor: "pointer" }}>
               Yes, Reset Everything
             </button>
             <button onClick={() => setShowResetConfirm(false)}
-              style={{ background: "#1a2636", color: "#4a6278", border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, cursor: "pointer" }}>
+              style={{ background: "#f5f5f2", color: "#999", border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, cursor: "pointer" }}>
               Cancel
             </button>
           </div>
         )}
       </div>
 
-      {/* Win editor */}
-      <div style={{ fontSize: 11, color: "#4a6278", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>Update Win Totals</div>
+      {/* Win + eliminated editor */}
+      <div style={{ fontSize: 10, color: "#999", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10 }}>Update Teams</div>
       <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search teams or owners..."
-        style={{ width: "100%", background: "#0c1520", border: "1px solid #1e2d3d", borderRadius: 10, padding: "12px 16px", color: "#e8f0fe", fontSize: 14, outline: "none", marginBottom: 12, boxSizing: "border-box" }} />
-      {[...filtered].sort((a, b) => b.wins - a.wins).map(t => (
+        style={{ width: "100%", background: "#fff", border: "1px solid #e8e8e4", borderRadius: 10, padding: "12px 16px", color: "#1a1a18", fontSize: 14, outline: "none", marginBottom: 12, boxSizing: "border-box", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }} />
+      {[...filtered].sort((a, b) => b.wins - a.wins).map(t => {
+        const isElim = t.alive === false;
+        return (
         <div key={t.id} style={{
-          background: "#0c1520", border: "1px solid #1a2636", borderRadius: 10,
+          background: "#fff", border: `1px solid ${isElim ? "#f5f5f2" : "#e8e8e4"}`, borderRadius: 10,
           padding: "12px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12,
+          opacity: isElim ? 0.6 : 1, boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
         }}>
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <span style={{ fontSize: 11, background: "#1a2636", color: "#4a6278", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>{t.seed}</span>
-              <span style={{ fontWeight: 700, color: "#e8f0fe" }}>{t.name}</span>
-              <span style={{ fontSize: 11, color: "#4a6278" }}>{t.region}</span>
+              <span style={{ fontSize: 11, background: "#f0f0ec", color: "#999", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>{t.seed}</span>
+              <span style={{ fontWeight: 700, color: isElim ? "#bbb" : "#1a1a18", textDecoration: isElim ? "line-through" : "none" }}>{t.name}</span>
+              <span style={{ fontSize: 11, color: "#bbb" }}>{t.region}</span>
+              {isElim && <span style={{ fontSize: 10, background: "#fee2e2", color: "#ef4444", border: "1px solid #fecaca", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>ELIM</span>}
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
               <OwnerAvatar owner={t.owner} size={16} />
-              <span style={{ fontSize: 12, color: t.owner ? OWNER_COLORS[t.owner] : "#4a6278" }}>{t.owner || "Unassigned"}</span>
-              {t.price > 0 && <span style={{ fontSize: 12, color: "#4a6278" }}>${t.price.toFixed(2)}</span>}
+              <span style={{ fontSize: 12, color: t.owner ? OWNER_COLORS[t.owner] : "#bbb" }}>{t.owner || "Unassigned"}</span>
+              {t.price > 0 && <span style={{ fontSize: 12, color: "#bbb" }}>${t.price.toFixed(2)}</span>}
             </div>
           </div>
-          {editId === t.id ? (
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input type="number" min={0} max={6} value={editWins} onChange={e => setEditWins(parseInt(e.target.value) || 0)}
-                style={{ width: 60, background: "#0f1923", border: "1px solid #1e2d3d", borderRadius: 6, padding: "6px 10px", color: "#e8f0fe", fontWeight: 700, fontSize: 15, outline: "none", textAlign: "center" }} />
-              <button onClick={() => { setTeams(prev => prev.map(t2 => t2.id === t.id ? { ...t2, wins: editWins } : t2)); setEditId(null); }}
-                style={{ background: "#34d399", color: "#000", border: "none", borderRadius: 6, padding: "6px 12px", fontWeight: 800, cursor: "pointer" }}>✓</button>
-              <button onClick={() => setEditId(null)}
-                style={{ background: "#1a2636", color: "#4a6278", border: "none", borderRadius: 6, padding: "6px 12px", fontWeight: 800, cursor: "pointer" }}>✕</button>
-            </div>
-          ) : (
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: "#facc15" }}>{t.wins}W</div>
-                <div style={{ fontSize: 11, color: "#4a6278" }}>${PAYOUTS[t.wins] || 0} out</div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {editId === t.id ? (
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input type="number" min={0} max={6} value={editWins} onChange={e => setEditWins(parseInt(e.target.value) || 0)}
+                  style={{ width: 60, background: "#f5f5f2", border: "1px solid #e8e8e4", borderRadius: 6, padding: "6px 10px", color: "#1a1a18", fontWeight: 700, fontSize: 15, outline: "none", textAlign: "center" }} />
+                <button onClick={() => { setTeams(prev => prev.map(t2 => t2.id === t.id ? { ...t2, wins: editWins } : t2)); setEditId(null); }}
+                  style={{ background: "#10b981", color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontWeight: 800, cursor: "pointer" }}>✓</button>
+                <button onClick={() => setEditId(null)}
+                  style={{ background: "#f5f5f2", color: "#999", border: "none", borderRadius: 6, padding: "6px 12px", fontWeight: 800, cursor: "pointer" }}>✕</button>
               </div>
-              <button onClick={() => { setEditId(t.id); setEditWins(t.wins); }}
-                style={{ background: "#1a2636", color: "#4a6278", border: "none", borderRadius: 6, padding: "6px 12px", fontWeight: 800, cursor: "pointer", fontSize: 13 }}>
-                Edit
-              </button>
-            </div>
-          )}
+            ) : (
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#f59e0b", fontFamily: "'Georgia', serif" }}>{t.wins}W</div>
+                  <div style={{ fontSize: 11, color: "#bbb" }}>${PAYOUTS[t.wins] || 0} out</div>
+                </div>
+                <button onClick={() => { setEditId(t.id); setEditWins(t.wins); }}
+                  style={{ background: "#f5f5f2", color: "#888", border: "1px solid #e8e8e4", borderRadius: 6, padding: "6px 12px", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>
+                  Wins
+                </button>
+                <button
+                  onClick={() => setTeams(prev => prev.map(t2 => t2.id === t.id ? { ...t2, alive: isElim } : t2))}
+                  style={{
+                    background: isElim ? "#f0fdf4" : "#fff",
+                    color: isElim ? "#10b981" : "#ef4444",
+                    border: `1px solid ${isElim ? "#bbf7d0" : "#fecaca"}`,
+                    borderRadius: 6, padding: "6px 10px", fontWeight: 700, cursor: "pointer", fontSize: 12,
+                  }}>
+                  {isElim ? "Restore" : "Elim"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -944,25 +948,25 @@ function HistoryTab() {
     <div style={{ paddingBottom: 40 }}>
       {/* All-time */}
       <div style={{ marginBottom: 28 }}>
-        <div style={{ fontSize: 11, color: "#4a6278", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>All-Time Standings</div>
+        <div style={{ fontSize: 11, color: "#999", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>All-Time Standings</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>
           {allTime.map((s, i) => (
             <div key={s.owner} style={{
-              background: "#0c1520",
-              border: `1px solid ${i === 0 ? OWNER_COLORS[s.owner] + "77" : "#1a2636"}`,
+              background: "#fff",
+              border: `1px solid ${i === 0 ? OWNER_COLORS[s.owner] + "77" : "#e8e8e4"}`,
               borderRadius: 12, padding: "14px 16px",
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <span style={{ fontSize: 15, fontWeight: 900, color: "#1e2d3d" }}>#{i+1}</span>
+                <span style={{ fontSize: 15, fontWeight: 900, color: "#e0e0da" }}>#{i+1}</span>
                 <OwnerAvatar owner={s.owner} size={30} />
-                <span style={{ fontWeight: 800, color: "#e8f0fe", fontSize: 14 }}>{s.owner}</span>
+                <span style={{ fontWeight: 800, color: "#1a1a18", fontSize: 14 }}>{s.owner}</span>
               </div>
-              <div style={{ fontSize: 22, fontWeight: 900, color: s.totalNet >= 0 ? "#34d399" : "#f43f5e", marginBottom: 4 }}>
+              <div style={{ fontSize: 22, fontWeight: 900, color: s.totalNet >= 0 ? "#10b981" : "#ef4444", marginBottom: 4 }}>
                 {s.totalNet >= 0 ? "+" : ""}${s.totalNet.toFixed(0)}
               </div>
-              <div style={{ fontSize: 11, color: "#4a6278" }}>{s.totalWins} wins · {s.yearsPlayed} yr{s.yearsPlayed !== 1 ? "s" : ""}</div>
+              <div style={{ fontSize: 11, color: "#999" }}>{s.totalWins} wins · {s.yearsPlayed} yr{s.yearsPlayed !== 1 ? "s" : ""}</div>
               {s.champCount > 0 && (
-                <div style={{ marginTop: 6 }}><Badge color="#facc15">🏆 {s.champCount}x champ</Badge></div>
+                <div style={{ marginTop: 6 }}><Badge color="#f59e0b">🏆 {s.champCount}x champ</Badge></div>
               )}
             </div>
           ))}
@@ -971,34 +975,34 @@ function HistoryTab() {
 
       {/* Year picker */}
       <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center", flexWrap: "wrap" }}>
-        <div style={{ fontSize: 11, color: "#4a6278", fontWeight: 700, textTransform: "uppercase", marginRight: 4 }}>Year</div>
+        <div style={{ fontSize: 11, color: "#999", fontWeight: 700, textTransform: "uppercase", marginRight: 4 }}>Year</div>
         {years.map(y => (
           <button key={y} onClick={() => { setSelectedYear(y); setExpandedOwner(null); }} style={{
             padding: "6px 16px", borderRadius: 8, border: "none", cursor: "pointer",
-            background: selectedYear === y ? "#e8f0fe" : "#0f1923",
-            color: selectedYear === y ? "#080e18" : "#4a6278",
+            background: selectedYear === y ? "#1a1a18" : "#f5f5f2",
+            color: selectedYear === y ? "#f0f0ec" : "#999",
             fontWeight: 800, fontSize: 14,
           }}>{y}</button>
         ))}
       </div>
 
       {/* Year hero */}
-      <div style={{ background: "linear-gradient(135deg, #0c1520, #0f1f2e)", border: "1px solid #1a2636", borderRadius: 14, padding: 20, marginBottom: 20 }}>
+      <div style={{ background: "linear-gradient(135deg, #1a1a18, #2a2a26)", border: "1px solid #e0e0da", borderRadius: 14, padding: 20, marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
           <div>
-            <div style={{ fontSize: 28, fontWeight: 900, color: "#e8f0fe" }}>{selectedYear}</div>
-            <div style={{ fontSize: 14, color: "#4a6278", marginTop: 4 }}>
-              🏆 <span style={{ color: "#facc15", fontWeight: 700 }}>{yearData.champion}</span>
+            <div style={{ fontSize: 28, fontWeight: 900, color: "#f5f5f0" }}>{selectedYear}</div>
+            <div style={{ fontSize: 14, color: "#999", marginTop: 4 }}>
+              🏆 <span style={{ color: "#f59e0b", fontWeight: 700 }}>{yearData.champion}</span>
               {yearData.champOwner && <span> · owned by <span style={{ color: OWNER_COLORS[yearData.champOwner], fontWeight: 700 }}>{yearData.champOwner}</span></span>}
             </div>
-            <div style={{ fontSize: 12, color: "#4a6278", marginTop: 4 }}>Final Four: {yearData.finalFour.join(" · ")}</div>
+            <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>Final Four: {yearData.finalFour.join(" · ")}</div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             {["standings", "teams"].map(v => (
               <button key={v} onClick={() => setView(v)} style={{
                 padding: "6px 14px", borderRadius: 8, border: "none", cursor: "pointer",
-                background: view === v ? "#e8f0fe" : "#1a2636",
-                color: view === v ? "#080e18" : "#4a6278", fontWeight: 700, fontSize: 12,
+                background: view === v ? "#1a1a18" : "#e8e8e4",
+                color: view === v ? "#f0f0ec" : "#999", fontWeight: 700, fontSize: 12,
                 textTransform: "capitalize",
               }}>{v}</button>
             ))}
@@ -1009,54 +1013,54 @@ function HistoryTab() {
       {/* Standings view */}
       {view === "standings" && stats.map((s, i) => (
         <div key={s.owner} style={{
-          background: "#0c1520", border: `1px solid ${expandedOwner === s.owner ? OWNER_COLORS[s.owner] + "66" : "#1a2636"}`,
+          background: "#fff", border: `1px solid ${expandedOwner === s.owner ? OWNER_COLORS[s.owner] + "66" : "#e8e8e4"}`,
           borderRadius: 12, marginBottom: 10, overflow: "hidden",
         }}>
           <div onClick={() => setExpandedOwner(expandedOwner === s.owner ? null : s.owner)}
             style={{ padding: "14px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ fontSize: 20, fontWeight: 900, color: "#1e2d3d", minWidth: 28, textAlign: "center" }}>{i + 1}</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: "#e0e0da", minWidth: 28, textAlign: "center" }}>{i + 1}</div>
             <OwnerAvatar owner={s.owner} size={38} />
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 16, fontWeight: 800, color: "#e8f0fe" }}>{s.owner}</div>
-              <div style={{ fontSize: 12, color: "#4a6278" }}>{s.wins} wins · {s.teams.length} teams · ${s.spent.toFixed(0)} spent</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#1a1a18" }}>{s.owner}</div>
+              <div style={{ fontSize: 12, color: "#999" }}>{s.wins} wins · {s.teams.length} teams · ${s.spent.toFixed(0)} spent</div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 20, fontWeight: 900, color: s.net >= 0 ? "#34d399" : "#f43f5e" }}>
+              <div style={{ fontSize: 20, fontWeight: 900, color: s.net >= 0 ? "#10b981" : "#ef4444" }}>
                 {s.net >= 0 ? "+" : ""}${s.net.toFixed(0)}
               </div>
-              <div style={{ fontSize: 11, color: "#4a6278" }}>{s.roi >= 0 ? "+" : ""}{s.roi.toFixed(0)}% ROI</div>
+              <div style={{ fontSize: 11, color: "#999" }}>{s.roi >= 0 ? "+" : ""}{s.roi.toFixed(0)}% ROI</div>
             </div>
-            <div style={{ color: "#4a6278", fontSize: 18, marginLeft: 4 }}>{expandedOwner === s.owner ? "▲" : "▼"}</div>
+            <div style={{ color: "#999", fontSize: 18, marginLeft: 4 }}>{expandedOwner === s.owner ? "▲" : "▼"}</div>
           </div>
           {expandedOwner === s.owner && (
-            <div style={{ borderTop: "1px solid #1a2636", padding: "12px 18px" }}>
+            <div style={{ borderTop: "1px solid #f0f0ec", padding: "12px 18px", background: "#fafaf8" }}>
               <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap" }}>
                 <StatCard label="Spent" value={`$${s.spent.toFixed(0)}`} />
-                <StatCard label="Earned" value={`$${s.earned}`} accent="#34d399" />
-                <StatCard label="Net" value={`${s.net >= 0 ? "+" : ""}$${s.net.toFixed(0)}`} accent={s.net >= 0 ? "#34d399" : "#f43f5e"} />
-                <StatCard label="ROI" value={`${s.roi.toFixed(0)}%`} accent={s.roi >= 0 ? "#34d399" : "#f43f5e"} />
+                <StatCard label="Earned" value={`$${s.earned}`} accent="#10b981" />
+                <StatCard label="Net" value={`${s.net >= 0 ? "+" : ""}$${s.net.toFixed(0)}`} accent={s.net >= 0 ? "#10b981" : "#ef4444"} />
+                <StatCard label="ROI" value={`${s.roi.toFixed(0)}%`} accent={s.roi >= 0 ? "#10b981" : "#ef4444"} />
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
                 {[...s.teams].sort((a, b) => b.wins - a.wins).map((t, idx) => {
                   const net = (PAYOUTS[t.wins] || 0) - t.price;
                   return (
                     <div key={idx} style={{
-                      background: "#0f1923", borderRadius: 8, padding: "10px 12px",
-                      border: `1px solid ${t.wins > 0 ? OWNER_COLORS[s.owner] + "44" : "#1e2d3d"}`,
+                      background: "#f5f5f2", borderRadius: 8, padding: "10px 12px",
+                      border: `1px solid ${t.wins > 0 ? OWNER_COLORS[s.owner] + "44" : "#e0e0da"}`,
                       display: "flex", justifyContent: "space-between", alignItems: "center",
                     }}>
                       <div>
                         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                          <span style={{ fontSize: 10, color: "#4a6278", fontWeight: 700 }}>#{t.seed}</span>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: "#e8f0fe" }}>{t.name}</span>
+                          <span style={{ fontSize: 10, color: "#999", fontWeight: 700 }}>#{t.seed}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: "#1a1a18" }}>{t.name}</span>
                         </div>
-                        <div style={{ fontSize: 11, color: "#4a6278", marginTop: 2 }}>${t.price.toFixed(2)} · {t.wins}W</div>
+                        <div style={{ fontSize: 11, color: "#999", marginTop: 2 }}>${t.price.toFixed(2)} · {t.wins}W</div>
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 14, fontWeight: 800, color: net >= 0 ? "#34d399" : "#f43f5e" }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: net >= 0 ? "#10b981" : "#ef4444" }}>
                           {net >= 0 ? "+" : ""}${net.toFixed(2)}
                         </div>
-                        {t.wins > 0 && <div style={{ fontSize: 10, color: "#facc15" }}>{"★".repeat(Math.min(t.wins, 6))}</div>}
+                        {t.wins > 0 && <div style={{ fontSize: 10, color: "#f59e0b" }}>{"★".repeat(Math.min(t.wins, 6))}</div>}
                       </div>
                     </div>
                   );
@@ -1072,40 +1076,40 @@ function HistoryTab() {
         const regionTeams = yearData.teams.filter(t => t.region === region).sort((a, b) => a.seed - b.seed);
         return (
           <div key={region} style={{ marginBottom: 24 }}>
-            <div style={{ fontSize: 11, color: "#4a6278", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>{region}</div>
+            <div style={{ fontSize: 11, color: "#999", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>{region}</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: 8 }}>
               {regionTeams.map((t, idx) => {
                 const net = (PAYOUTS[t.wins] || 0) - t.price;
                 return (
                   <div key={idx} style={{
-                    background: "#0c1520",
-                    borderLeft: `3px solid ${t.wins > 0 ? OWNER_COLORS[t.owner] : "#1a2636"}`,
-                    border: `1px solid ${t.wins > 0 ? OWNER_COLORS[t.owner] + "44" : "#1a2636"}`,
+                    background: "#fff",
+                    borderLeft: `3px solid ${t.wins > 0 ? OWNER_COLORS[t.owner] : "#e8e8e4"}`,
+                    border: `1px solid ${t.wins > 0 ? OWNER_COLORS[t.owner] + "44" : "#e8e8e4"}`,
                     borderRadius: 8, padding: "10px 14px",
                   }}>
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <div>
                         <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 3 }}>
-                          <span style={{ fontSize: 11, background: "#1a2636", color: "#4a6278", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>{t.seed}</span>
-                          <span style={{ fontSize: 13, fontWeight: 800, color: "#e8f0fe" }}>{t.name}</span>
+                          <span style={{ fontSize: 11, background: "#e8e8e4", color: "#999", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>{t.seed}</span>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: "#1a1a18" }}>{t.name}</span>
                         </div>
                         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                           <OwnerAvatar owner={t.owner} size={16} />
                           <span style={{ fontSize: 11, color: OWNER_COLORS[t.owner], fontWeight: 700 }}>{t.owner}</span>
-                          <span style={{ fontSize: 11, color: "#4a6278" }}>${t.price.toFixed(2)}</span>
+                          <span style={{ fontSize: 11, color: "#999" }}>${t.price.toFixed(2)}</span>
                         </div>
                       </div>
                       <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 14, fontWeight: 900, color: net >= 0 ? "#34d399" : "#f43f5e" }}>
+                        <div style={{ fontSize: 14, fontWeight: 900, color: net >= 0 ? "#10b981" : "#ef4444" }}>
                           {net >= 0 ? "+" : ""}${net.toFixed(2)}
                         </div>
-                        <div style={{ fontSize: 11, color: "#4a6278" }}>{t.wins}W</div>
+                        <div style={{ fontSize: 11, color: "#999" }}>{t.wins}W</div>
                       </div>
                     </div>
                     {t.wins > 0 && (
                       <div style={{ marginTop: 8, display: "flex", gap: 3 }}>
                         {[1,2,3,4,5,6].map(r => (
-                          <div key={r} style={{ flex: 1, height: 4, borderRadius: 2, background: r <= t.wins ? OWNER_COLORS[t.owner] : "#1a2636" }} />
+                          <div key={r} style={{ flex: 1, height: 4, borderRadius: 2, background: r <= t.wins ? OWNER_COLORS[t.owner] : "#e8e8e4" }} />
                         ))}
                       </div>
                     )}
@@ -1239,7 +1243,7 @@ function LiveScores({ teams }) {
       {/* Owner impact bar — only shown when games are live */}
       {hasImpact && (
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 11, color: "#f43f5e", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>
+          <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 10 }}>
             🔴 Live Impact
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8 }}>
@@ -1248,19 +1252,19 @@ function LiveScores({ teams }) {
               if (imp.winning.length === 0 && imp.losing.length === 0) return null;
               return (
                 <div key={owner} style={{
-                  background: "#0c1520",
-                  border: `1px solid ${imp.winning.length > imp.losing.length ? "#34d39955" : "#f43f5e55"}`,
+                  background: "#fff",
+                  border: `1px solid ${imp.winning.length > imp.losing.length ? "#a7f3d0" : "#fecaca"}`,
                   borderRadius: 10, padding: "12px 14px",
                 }}>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
                     <OwnerAvatar owner={owner} size={24} />
-                    <span style={{ fontWeight: 800, color: "#e8f0fe", fontSize: 13 }}>{owner}</span>
+                    <span style={{ fontWeight: 800, color: "#1a1a18", fontSize: 13 }}>{owner}</span>
                   </div>
                   {imp.winning.map(n => (
-                    <div key={n} style={{ fontSize: 11, color: "#34d399", marginBottom: 2 }}>▲ {n}</div>
+                    <div key={n} style={{ fontSize: 11, color: "#10b981", marginBottom: 2 }}>▲ {n}</div>
                   ))}
                   {imp.losing.map(n => (
-                    <div key={n} style={{ fontSize: 11, color: "#f43f5e", marginBottom: 2 }}>▼ {n}</div>
+                    <div key={n} style={{ fontSize: 11, color: "#ef4444", marginBottom: 2 }}>▼ {n}</div>
                   ))}
                 </div>
               );
@@ -1280,45 +1284,45 @@ function LiveScores({ teams }) {
           ].map(f => (
             <button key={f.id} onClick={() => setFilter(f.id)} style={{
               padding: "6px 14px", borderRadius: 20, border: "none", cursor: "pointer",
-              background: filter === f.id ? "#e8f0fe" : "#0f1923",
-              color: filter === f.id ? "#080e18" : "#4a6278",
+              background: filter === f.id ? "#1a1a18" : "#f5f5f2",
+              color: filter === f.id ? "#f0f0ec" : "#999",
               fontWeight: 700, fontSize: 12,
             }}>{f.label}</button>
           ))}
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
           {lastUpdated && (
-            <span style={{ fontSize: 11, color: "#4a6278" }}>
+            <span style={{ fontSize: 11, color: "#999" }}>
               Updated {lastUpdated.toLocaleTimeString()}
             </span>
           )}
           <button onClick={fetchScores} style={{
-            background: "#1a2636", color: "#4a6278", border: "none", borderRadius: 8,
+            background: "#e8e8e4", color: "#999", border: "none", borderRadius: 8,
             padding: "6px 12px", fontWeight: 700, cursor: "pointer", fontSize: 12,
           }}>↻ Refresh</button>
         </div>
       </div>
 
       {loading && (
-        <div style={{ textAlign: "center", padding: 60, color: "#4a6278" }}>
+        <div style={{ textAlign: "center", padding: 60, color: "#999" }}>
           <div style={{ fontSize: 28, marginBottom: 12 }}>🏀</div>
           <div style={{ fontWeight: 700 }}>Loading scores...</div>
         </div>
       )}
 
       {error && (
-        <div style={{ background: "#1a0c0c", border: "1px solid #f43f5e44", borderRadius: 12, padding: 24, textAlign: "center" }}>
+        <div style={{ background: "#fff5f5", border: "1px solid #fecaca", borderRadius: 12, padding: 24, textAlign: "center" }}>
           <div style={{ fontSize: 24, marginBottom: 10 }}>📡</div>
-          <div style={{ color: "#f43f5e", fontWeight: 700, marginBottom: 8 }}>Score feed unavailable</div>
-          <div style={{ color: "#4a6278", fontSize: 13, marginBottom: 16 }}>{error}</div>
-          <button onClick={fetchScores} style={{ background: "#f43f5e", color: "#fff", border: "none", borderRadius: 8, padding: "10px 24px", fontWeight: 800, cursor: "pointer" }}>
+          <div style={{ color: "#ef4444", fontWeight: 700, marginBottom: 8 }}>Score feed unavailable</div>
+          <div style={{ color: "#999", fontSize: 13, marginBottom: 16 }}>{error}</div>
+          <button onClick={fetchScores} style={{ background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, padding: "10px 24px", fontWeight: 800, cursor: "pointer" }}>
             Try Again
           </button>
         </div>
       )}
 
       {!loading && !error && filtered.length === 0 && (
-        <div style={{ textAlign: "center", padding: 60, color: "#4a6278" }}>
+        <div style={{ textAlign: "center", padding: 60, color: "#999" }}>
           <div style={{ fontSize: 28, marginBottom: 12 }}>🏀</div>
           <div style={{ fontWeight: 700 }}>No games in this category</div>
           <div style={{ fontSize: 13, marginTop: 8 }}>Check back when the tournament begins (March 20, 2025)</div>
@@ -1345,17 +1349,17 @@ function LiveScores({ teams }) {
 
         return (
           <div key={g.id} style={{
-            background: "#0c1520",
-            border: `1px solid ${isLive ? "#f43f5e55" : "#1a2636"}`,
+            background: "#fff",
+            border: `1px solid ${isLive ? "#fca5a5" : "#e8e8e4"}`,
             borderRadius: 12, marginBottom: 10, overflow: "hidden",
           }}>
             {/* Round label */}
             {g.note && (
-              <div style={{ padding: "6px 16px", background: "#0a1018", borderBottom: "1px solid #1a2636" }}>
-                <span style={{ fontSize: 10, color: "#4a6278", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>{g.note}</span>
-                {isLive && <span style={{ marginLeft: 10, fontSize: 10, color: "#f43f5e", fontWeight: 800, letterSpacing: "0.08em" }}>● LIVE · {g.clock} · {g.period && `P${g.period}`}</span>}
-                {isFinal && <span style={{ marginLeft: 10, fontSize: 10, color: "#34d399", fontWeight: 700 }}>✓ FINAL</span>}
-                {!isLive && !isFinal && <span style={{ marginLeft: 10, fontSize: 10, color: "#4a6278", fontWeight: 700 }}>{g.statusDisplay}</span>}
+              <div style={{ padding: "6px 16px", background: "#f5f5f2", borderBottom: "1px solid #e0e0da" }}>
+                <span style={{ fontSize: 10, color: "#999", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>{g.note}</span>
+                {isLive && <span style={{ marginLeft: 10, fontSize: 10, color: "#ef4444", fontWeight: 800, letterSpacing: "0.08em" }}>● LIVE · {g.clock} · {g.period && `P${g.period}`}</span>}
+                {isFinal && <span style={{ marginLeft: 10, fontSize: 10, color: "#10b981", fontWeight: 700 }}>✓ FINAL</span>}
+                {!isLive && !isFinal && <span style={{ marginLeft: 10, fontSize: 10, color: "#999", fontWeight: 700 }}>{g.statusDisplay}</span>}
               </div>
             )}
 
@@ -1371,7 +1375,7 @@ function LiveScores({ teams }) {
                   <div key={idx} style={{
                     display: "flex", alignItems: "center", gap: 12,
                     padding: "8px 0",
-                    borderBottom: idx === 0 ? "1px solid #1a2636" : "none",
+                    borderBottom: idx === 0 ? "1px solid #f0f0ec" : "none",
                     opacity: dimmed ? 0.45 : 1,
                   }}>
                     {/* Owner avatar */}
@@ -1381,19 +1385,19 @@ function LiveScores({ teams }) {
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                         {side.poolTeam?.seed && (
-                          <span style={{ fontSize: 10, background: "#1a2636", color: "#4a6278", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>
+                          <span style={{ fontSize: 10, background: "#e8e8e4", color: "#999", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>
                             {side.poolTeam.seed}
                           </span>
                         )}
-                        <span style={{ fontWeight: side.winner ? 900 : 700, fontSize: 15, color: side.winner ? "#e8f0fe" : "#8a9ab0" }}>
+                        <span style={{ fontWeight: side.winner ? 900 : 700, fontSize: 15, color: side.winner ? "#1a1a18" : "#bbb" }}>
                           {side.espnName}
                         </span>
-                        {side.winner && <span style={{ fontSize: 11, color: "#34d399" }}>✓</span>}
+                        {side.winner && <span style={{ fontSize: 11, color: "#10b981" }}>✓</span>}
                       </div>
                       {side.poolTeam?.owner && (
                         <div style={{ fontSize: 11, color: OWNER_COLORS[side.poolTeam.owner], fontWeight: 700, marginTop: 1 }}>
                           {side.poolTeam.owner}
-                          {side.poolTeam.price > 0 && <span style={{ color: "#4a6278", fontWeight: 500 }}> · paid ${side.poolTeam.price.toFixed(2)}</span>}
+                          {side.poolTeam.price > 0 && <span style={{ color: "#999", fontWeight: 500 }}> · paid ${side.poolTeam.price.toFixed(2)}</span>}
                         </div>
                       )}
                     </div>
@@ -1401,13 +1405,13 @@ function LiveScores({ teams }) {
                     {/* Payout badge */}
                     {payout !== null && isLive && (
                       <div style={{
-                        background: "#34d39922", border: "1px solid #34d39944",
-                        borderRadius: 6, padding: "3px 8px", fontSize: 11, color: "#34d399", fontWeight: 800,
+                        background: "#d1fae5", border: "1px solid #a7f3d0",
+                        borderRadius: 6, padding: "3px 8px", fontSize: 11, color: "#10b981", fontWeight: 800,
                       }}>+${payout}</div>
                     )}
 
                     {/* Score */}
-                    <div style={{ fontSize: 22, fontWeight: 900, minWidth: 36, textAlign: "right", color: side.winner ? "#e8f0fe" : "#4a6278" }}>
+                    <div style={{ fontSize: 22, fontWeight: 900, minWidth: 36, textAlign: "right", color: side.winner ? "#1a1a18" : "#999" }}>
                       {g.status === "STATUS_SCHEDULED" ? "—" : side.score}
                     </div>
                   </div>
@@ -1420,7 +1424,7 @@ function LiveScores({ teams }) {
 
       {/* Auto-refresh note */}
       {!loading && !error && games.length > 0 && (
-        <div style={{ textAlign: "center", fontSize: 11, color: "#2a3a4d", marginTop: 16 }}>
+        <div style={{ textAlign: "center", fontSize: 11, color: "#bbb", marginTop: 16 }}>
           Auto-refreshes every 30 seconds
         </div>
       )}
@@ -1509,6 +1513,7 @@ create table if not exists bracket_teams (
   owner    text default '',
   price    numeric default 0,
   wins     int default 0,
+  alive    boolean default true,
   updated_at timestamptz default now()
 );
 
@@ -1538,9 +1543,9 @@ insert into auction_state (id) values (1) on conflict do nothing;`;
 
   return (
     <div style={{ maxWidth: 620, margin: "40px auto", padding: "0 16px" }}>
-      <div style={{ background: "#0c1520", border: "1px solid #facc1544", borderRadius: 14, padding: 28 }}>
-        <div style={{ fontSize: 22, fontWeight: 900, color: "#e8f0fe", marginBottom: 6 }}>⚡ One-time Setup</div>
-        <div style={{ fontSize: 14, color: "#4a6278", marginBottom: 28 }}>
+      <div style={{ background: "#fff", border: "1px solid #facc1544", borderRadius: 14, padding: 28 }}>
+        <div style={{ fontSize: 22, fontWeight: 900, color: "#1a1a18", marginBottom: 6 }}>⚡ One-time Setup</div>
+        <div style={{ fontSize: 14, color: "#999", marginBottom: 28 }}>
           Connect a free Supabase database so scores, auction results, and wins persist across all devices in real time.
         </div>
 
@@ -1553,10 +1558,10 @@ insert into auction_state (id) values (1) on conflict do nothing;`;
             n: 2, title: "Run this SQL to create the table",
             body: (
               <div>
-                <div style={{ background: "#080e18", borderRadius: 8, padding: "12px 14px", fontFamily: "monospace", fontSize: 12, color: "#94a3b8", whiteSpace: "pre-wrap", marginBottom: 8, lineHeight: 1.6 }}>
+                <div style={{ background: "#f0f0ec", borderRadius: 8, padding: "12px 14px", fontFamily: "monospace", fontSize: 12, color: "#888", whiteSpace: "pre-wrap", marginBottom: 8, lineHeight: 1.6 }}>
                   {sqlSchema}
                 </div>
-                <button onClick={() => copy(sqlSchema, "sql")} style={{ background: "#1a2636", color: copied === "sql" ? "#34d399" : "#4a6278", border: "none", borderRadius: 6, padding: "6px 14px", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>
+                <button onClick={() => copy(sqlSchema, "sql")} style={{ background: "#e8e8e4", color: copied === "sql" ? "#10b981" : "#999", border: "none", borderRadius: 6, padding: "6px 14px", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>
                   {copied === "sql" ? "✓ Copied!" : "Copy SQL"}
                 </button>
               </div>
@@ -1564,16 +1569,16 @@ insert into auction_state (id) values (1) on conflict do nothing;`;
           },
           {
             n: 3, title: "Grab your API credentials",
-            body: <span>In Supabase → <strong style={{ color: "#e8f0fe" }}>Project Settings → API</strong>, copy your <strong style={{ color: "#e8f0fe" }}>Project URL</strong> and <strong style={{ color: "#e8f0fe" }}>anon public key</strong>.</span>
+            body: <span>In Supabase → <strong style={{ color: "#1a1a18" }}>Project Settings → API</strong>, copy your <strong style={{ color: "#1a1a18" }}>Project URL</strong> and <strong style={{ color: "#1a1a18" }}>anon public key</strong>.</span>
           },
           {
             n: 4, title: "Paste them into the code",
             body: (
               <div>
-                <div style={{ fontSize: 13, color: "#4a6278", marginBottom: 8 }}>Near the top of <code style={{ color: "#a78bfa" }}>bracket-app.jsx</code>, replace:</div>
-                <div style={{ background: "#080e18", borderRadius: 8, padding: "10px 14px", fontFamily: "monospace", fontSize: 12, color: "#94a3b8", lineHeight: 1.8 }}>
-                  <div><span style={{ color: "#4a6278" }}>const</span> SUPABASE_URL = <span style={{ color: "#34d399" }}>"YOUR_SUPABASE_URL"</span>;</div>
-                  <div><span style={{ color: "#4a6278" }}>const</span> SUPABASE_KEY = <span style={{ color: "#34d399" }}>"YOUR_SUPABASE_ANON_KEY"</span>;</div>
+                <div style={{ fontSize: 13, color: "#999", marginBottom: 8 }}>Near the top of <code style={{ color: "#a78bfa" }}>bracket-app.jsx</code>, replace:</div>
+                <div style={{ background: "#f0f0ec", borderRadius: 8, padding: "10px 14px", fontFamily: "monospace", fontSize: 12, color: "#888", lineHeight: 1.8 }}>
+                  <div><span style={{ color: "#999" }}>const</span> SUPABASE_URL = <span style={{ color: "#10b981" }}>"YOUR_SUPABASE_URL"</span>;</div>
+                  <div><span style={{ color: "#999" }}>const</span> SUPABASE_KEY = <span style={{ color: "#10b981" }}>"YOUR_SUPABASE_ANON_KEY"</span>;</div>
                 </div>
               </div>
             )
@@ -1587,11 +1592,11 @@ insert into auction_state (id) values (1) on conflict do nothing;`;
             <div style={{
               width: 28, height: 28, borderRadius: "50%", background: "#facc1522", border: "2px solid #facc1566",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 13, fontWeight: 900, color: "#facc15", flexShrink: 0, marginTop: 2,
+              fontSize: 13, fontWeight: 900, color: "#f59e0b", flexShrink: 0, marginTop: 2,
             }}>{step.n}</div>
             <div>
-              <div style={{ fontWeight: 800, color: "#e8f0fe", fontSize: 15, marginBottom: 6 }}>{step.title}</div>
-              <div style={{ fontSize: 13, color: "#4a6278", lineHeight: 1.6 }}>{step.body}</div>
+              <div style={{ fontWeight: 800, color: "#1a1a18", fontSize: 15, marginBottom: 6 }}>{step.title}</div>
+              <div style={{ fontSize: 13, color: "#999", lineHeight: 1.6 }}>{step.body}</div>
             </div>
           </div>
         ))}
@@ -1618,7 +1623,7 @@ export default function App() {
     setTeamsState(prev => prev.map(t => {
       const row = rows.find(r => r.id === t.id && r.season === SEASON);
       if (!row) return t;
-      return { ...t, owner: row.owner ?? t.owner, price: row.price ?? t.price, wins: row.wins ?? t.wins };
+      return { ...t, owner: row.owner ?? t.owner, price: row.price ?? t.price, wins: row.wins ?? t.wins, alive: row.alive ?? t.alive };
     }));
   };
 
@@ -1634,7 +1639,7 @@ export default function App() {
 
     // Real-time subscription — any update from any device applies instantly
     const unsub = sb.subscribe("bracket_teams", SEASON, (row) => {
-      setTeamsState(prev => prev.map(t => t.id === row.id ? { ...t, owner: row.owner, price: row.price, wins: row.wins } : t));
+      setTeamsState(prev => prev.map(t => t.id === row.id ? { ...t, owner: row.owner, price: row.price, wins: row.wins, alive: row.alive } : t));
     });
     return unsub;
   }, []);
@@ -1646,7 +1651,7 @@ export default function App() {
     saveTimers.current[team.id] = setTimeout(async () => {
       setSyncMsg("Saving…");
       try {
-        await sb.upsert("bracket_teams", { id: team.id, season: SEASON, owner: team.owner, price: team.price, wins: team.wins });
+        await sb.upsert("bracket_teams", { id: team.id, season: SEASON, owner: team.owner, price: team.price, wins: team.wins, alive: team.alive !== false });
         setSyncMsg("✓ Saved");
         setTimeout(() => setSyncMsg(""), 2000);
       } catch {
@@ -1662,7 +1667,7 @@ export default function App() {
       // Find changed teams and persist each one
       next.forEach((t, i) => {
         const old = prev[i];
-        if (old && (old.owner !== t.owner || old.price !== t.price || old.wins !== t.wins)) {
+        if (old && (old.owner !== t.owner || old.price !== t.price || old.wins !== t.wins || old.alive !== t.alive)) {
           saveTeam(t);
         }
       });
@@ -1672,14 +1677,14 @@ export default function App() {
 
   // ── Reset: wipe DB rows + local state ────────────────────────────────────
   const handleReset = async () => {
-    const fresh = TEAMS_2025.map(t => ({ ...t, owner: "", price: 0, wins: 0 }));
+    const fresh = TEAMS_2025.map(t => ({ ...t, owner: "", price: 0, wins: 0, alive: true }));
     setTeamsState(fresh);
     setTab("leaderboard");
     if (!NOT_CONFIGURED && dbStatus === "ok") {
       setSyncMsg("Resetting…");
       try {
         await Promise.all(fresh.map(t =>
-          sb.upsert("bracket_teams", { id: t.id, season: SEASON, owner: "", price: 0, wins: 0 })
+          sb.upsert("bracket_teams", { id: t.id, season: SEASON, owner: "", price: 0, wins: 0, alive: true })
         ));
         setSyncMsg("✓ Reset complete");
         setTimeout(() => setSyncMsg(""), 3000);
@@ -1699,32 +1704,38 @@ export default function App() {
   if (dbStatus === "unconfigured") return <SetupGuide />;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#080e18", fontFamily: "'Georgia', 'Times New Roman', serif", color: "#e8f0fe" }}>
+    <div style={{ minHeight: "100vh", background: "#f0f0ec", fontFamily: "'Georgia', 'Times New Roman', serif", color: "#1a1a18" }}>
       <div style={{
-        background: "linear-gradient(135deg, #0c1520 0%, #0f1f30 100%)",
-        borderBottom: "1px solid #1a2636", padding: "16px 20px",
+        background: "rgba(240,240,236,0.92)", backdropFilter: "blur(12px)",
+        borderBottom: "1px solid #e0e0da", padding: "14px 20px",
         position: "sticky", top: 0, zIndex: 100,
       }}>
         <div style={{ maxWidth: 720, margin: "0 auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <div style={{ fontSize: 11, color: "#f43f5e", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase" }}>March Madness</div>
-              <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.1 }}>
-                BracketBuster <span style={{ color: "#facc15" }}>2026</span>
+              <div style={{ fontSize: 10, color: "#999", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase" }}>March Madness</div>
+              <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.1, color: "#1a1a18" }}>
+                NatCon Bracket Challenge <span style={{ color: "#f59e0b" }}>2026</span>
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               {syncMsg && (
-                <span style={{ fontSize: 11, color: syncMsg.startsWith("⚠") ? "#f43f5e" : "#34d399", fontWeight: 700 }}>{syncMsg}</span>
+                <span style={{ fontSize: 11, color: syncMsg.startsWith("⚠") ? "#ef4444" : "#10b981", fontWeight: 700 }}>{syncMsg}</span>
               )}
               {dbStatus === "error" && (
-                <span style={{ fontSize: 11, color: "#f43f5e", fontWeight: 700 }}>⚠ DB offline</span>
+                <span style={{ fontSize: 11, color: "#ef4444", fontWeight: 700 }}>⚠ DB offline</span>
               )}
               {dbStatus === "loading" && (
-                <span style={{ fontSize: 11, color: "#4a6278" }}>connecting…</span>
+                <span style={{ fontSize: 11, color: "#bbb" }}>connecting…</span>
               )}
               <button onClick={() => isAdmin ? setIsAdmin(false) : setShowAdminLogin(!showAdminLogin)}
-                style={{ background: isAdmin ? "#34d399" : "#1a2636", color: isAdmin ? "#000" : "#4a6278", border: "none", borderRadius: 8, padding: "7px 14px", fontWeight: 800, cursor: "pointer", fontSize: 12 }}>
+                style={{
+                  background: isAdmin ? "#1a1a18" : "#fff",
+                  color: isAdmin ? "#f5f5f0" : "#888",
+                  border: "1px solid #e0e0da",
+                  borderRadius: 50, padding: "7px 16px", fontWeight: 700, cursor: "pointer", fontSize: 12,
+                  boxShadow: isAdmin ? "0 2px 8px rgba(0,0,0,0.2)" : "none",
+                }}>
                 {isAdmin ? "✓ Admin" : "Admin"}
               </button>
             </div>
@@ -1735,29 +1746,30 @@ export default function App() {
               <input type="password" value={adminPw} onChange={e => setAdminPw(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter" && adminPw === "madness25") { setIsAdmin(true); setShowAdminLogin(false); setAdminPw(""); } }}
                 placeholder="Admin password..."
-                style={{ flex: 1, background: "#0f1923", border: "1px solid #1e2d3d", borderRadius: 8, padding: "8px 12px", color: "#e8f0fe", outline: "none" }} />
+                style={{ flex: 1, background: "#fff", border: "1px solid #e0e0da", borderRadius: 8, padding: "8px 12px", color: "#1a1a18", outline: "none", fontSize: 14 }} />
               <button onClick={() => { if (adminPw === "madness25") { setIsAdmin(true); setShowAdminLogin(false); setAdminPw(""); } else alert("Wrong password"); }}
-                style={{ background: "#f43f5e", color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontWeight: 800, cursor: "pointer" }}>
+                style={{ background: "#1a1a18", color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontWeight: 800, cursor: "pointer" }}>
                 Enter
               </button>
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 4, marginTop: 14, overflowX: "auto", paddingBottom: 2 }}>
+          <div style={{ display: "flex", gap: 2, marginTop: 12, overflowX: "auto", paddingBottom: 2 }}>
             {TABS.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)} style={{
-                background: tab === t.id ? "#e8f0fe" : "transparent",
-                color: tab === t.id ? "#080e18" : "#4a6278",
-                border: "none", borderRadius: 8, padding: "8px 14px",
-                fontWeight: 800, cursor: "pointer", fontSize: 13,
+                background: tab === t.id ? "#1a1a18" : "transparent",
+                color: tab === t.id ? "#f5f5f0" : "#999",
+                border: "none", borderRadius: 50, padding: "7px 16px",
+                fontWeight: 700, cursor: "pointer", fontSize: 13,
                 transition: "all 0.15s", fontFamily: "inherit", whiteSpace: "nowrap",
+                boxShadow: tab === t.id ? "0 2px 8px rgba(0,0,0,0.15)" : "none",
               }}>{t.label}</button>
             ))}
           </div>
         </div>
       </div>
 
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "20px 16px" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 16px" }}>
         {tab === "leaderboard" && <Leaderboard teams={teams} />}
         {tab === "bracket"     && <BracketView teams={teams} />}
         {tab === "live"        && <LiveScores teams={teams} />}
