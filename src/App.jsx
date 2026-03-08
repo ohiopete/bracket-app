@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 
+// Load Inter from Google Fonts
+const _fontLink = document.createElement("link");
+_fontLink.rel = "stylesheet";
+_fontLink.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap";
+document.head.appendChild(_fontLink);
+
 const PAYOUTS = { 1: 6, 2: 12, 3: 24, 4: 48, 5: 96, 6: 120 };
 const OWNERS = ["Aaron", "Adam", "Andy", "Brent", "Craig", "Matt"];
 const REGIONS = ["South", "West", "East", "Midwest"];
@@ -197,7 +203,7 @@ function StatCard({ label, value, sub, accent }) {
   return (
     <div style={{ background: "#1a1a18", borderRadius: 12, padding: "16px 20px", flex: 1, minWidth: 100, boxShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
       <div style={{ fontSize: 10, color: "#888", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 24, fontWeight: 900, color: accent || "#f5f5f0", lineHeight: 1, fontFamily: "'Georgia', serif" }}>{value}</div>
+      <div style={{ fontSize: 24, fontWeight: 900, color: accent || "#f5f5f0", lineHeight: 1, fontFamily: "'Inter', system-ui, sans-serif" }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: "#666", marginTop: 4 }}>{sub}</div>}
     </div>
   );
@@ -236,17 +242,17 @@ function Leaderboard({ teams }) {
         }}>
           <div onClick={() => setExpanded(expanded === s.owner ? null : s.owner)}
             style={{ padding: "14px 18px", cursor: "pointer", display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ fontSize: 18, fontWeight: 900, color: "#ccc", minWidth: 24, textAlign: "center", fontFamily: "'Georgia', serif" }}>{i + 1}</div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: "#ccc", minWidth: 24, textAlign: "center", fontFamily: "'Inter', system-ui, sans-serif" }}>{i + 1}</div>
             <OwnerAvatar owner={s.owner} size={40} />
             <div style={{ flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 16, fontWeight: 800, color: "#1a1a18", fontFamily: "'Georgia', serif" }}>{s.owner}</span>
+                <span style={{ fontSize: 16, fontWeight: 800, color: "#1a1a18", fontFamily: "'Inter', system-ui, sans-serif" }}>{s.owner}</span>
                 {s.alive > 0 && <Badge color="#10b981">🔥 {s.alive} alive</Badge>}
               </div>
               <div style={{ fontSize: 12, color: "#999", marginTop: 2 }}>{s.wins} wins · {s.teams.length} teams</div>
             </div>
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 20, fontWeight: 900, color: s.net >= 0 ? "#10b981" : "#ef4444", fontFamily: "'Georgia', serif" }}>
+              <div style={{ fontSize: 20, fontWeight: 900, color: s.net >= 0 ? "#10b981" : "#ef4444", fontFamily: "'Inter', system-ui, sans-serif" }}>
                 {s.net >= 0 ? "+" : ""}${s.net.toFixed(0)}
               </div>
               <div style={{ fontSize: 11, color: "#999" }}>{s.roi >= 0 ? "+" : ""}{s.roi.toFixed(0)}% ROI</div>
@@ -541,7 +547,7 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
       {phase === "idle" && (
         <div style={{ textAlign: "center", padding: "40px 0" }}>
           {unsoldTeams.length === 0 ? (
-            <div style={{ color: "#10b981", fontSize: 20, fontWeight: 800, fontFamily: "'Georgia', serif" }}>🏆 All {teams.length} teams have been auctioned!</div>
+            <div style={{ color: "#10b981", fontSize: 20, fontWeight: 800, fontFamily: "'Inter', system-ui, sans-serif" }}>🏆 All {teams.length} teams have been auctioned!</div>
           ) : isAdmin ? (
             <>
               <div style={{ fontSize: 11, color: "#999", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 20 }}>
@@ -586,7 +592,7 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
           </div>
           <div style={{
             fontSize: 34, fontWeight: 900, color: "#f5f5f0", marginBottom: 6,
-            fontFamily: "'Georgia', serif",
+            fontFamily: "'Inter', system-ui, sans-serif",
             filter: phase === "rolling" ? "blur(3px)" : "none",
             transition: "filter 0.2s", minHeight: 44,
           }}>
@@ -612,7 +618,7 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
         <div style={{ background: "#1a1a18", borderRadius: 16, padding: 20, marginBottom: 20, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
             <div style={{ background: "#f5f5f022", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 800, color: "#f5f5f0", textTransform: "uppercase", border: "1px solid #f5f5f033" }}>Live Bidding</div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: "#f5f5f0", fontFamily: "'Georgia', serif" }}>
+            <div style={{ fontSize: 20, fontWeight: 900, color: "#f5f5f0", fontFamily: "'Inter', system-ui, sans-serif" }}>
               #{pickedTeam.seed} {pickedTeam.name}
               <span style={{ color: "#666", fontWeight: 500, fontSize: 14 }}> · {pickedTeam.region}</span>
             </div>
@@ -628,7 +634,7 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
               <OwnerAvatar owner={currentLeader[0]} size={32} />
               <div>
                 <div style={{ fontSize: 10, color: "#888", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em" }}>Current High Bid</div>
-                <div style={{ fontSize: 22, fontWeight: 900, color: OWNER_COLORS[currentLeader[0]], fontFamily: "'Georgia', serif" }}>
+                <div style={{ fontSize: 22, fontWeight: 900, color: OWNER_COLORS[currentLeader[0]], fontFamily: "'Inter', system-ui, sans-serif" }}>
                   {currentLeader[0]} — <span style={{ color: "#f59e0b" }}>${currentLeader[1].toFixed(2)}</span>
                 </div>
               </div>
@@ -707,7 +713,7 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
                       <span style={{ fontWeight: 800, color: "#f5f5f0", fontSize: 13, flex: 1 }}>{o}</span>
                       {isLeading && <span style={{ fontSize: 10, background: OWNER_COLORS[o], color: "#000", borderRadius: 4, padding: "2px 6px", fontWeight: 900 }}>LEADING</span>}
                     </div>
-                    <div style={{ fontSize: 18, fontWeight: 900, color: standing > 0 ? OWNER_COLORS[o] : "#555", fontFamily: "'Georgia', serif" }}>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: standing > 0 ? OWNER_COLORS[o] : "#555", fontFamily: "'Inter', system-ui, sans-serif" }}>
                       {standing > 0 ? `$${standing.toFixed(2)}` : "—"}
                     </div>
                   </div>
@@ -765,8 +771,8 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
           }}>
             <div style={{ fontSize: 10, color: "#666", marginBottom: 8, textTransform: "uppercase", fontWeight: 700, letterSpacing: "0.12em" }}>Sold</div>
             <div style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>#{last.seed} · {last.region}</div>
-            <div style={{ fontSize: 26, fontWeight: 900, color: "#f5f5f0", marginBottom: 6, fontFamily: "'Georgia', serif" }}>{last.team}</div>
-            <div style={{ fontSize: 28, fontWeight: 900, color: OWNER_COLORS[last.winner], marginBottom: 20, fontFamily: "'Georgia', serif" }}>
+            <div style={{ fontSize: 26, fontWeight: 900, color: "#f5f5f0", marginBottom: 6, fontFamily: "'Inter', system-ui, sans-serif" }}>{last.team}</div>
+            <div style={{ fontSize: 28, fontWeight: 900, color: OWNER_COLORS[last.winner], marginBottom: 20, fontFamily: "'Inter', system-ui, sans-serif" }}>
               {last.winner} <span style={{ color: "#f59e0b" }}>${last.price.toFixed(2)}</span>
             </div>
             {unsoldTeams.length > 0 ? (
@@ -781,7 +787,7 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
                 <div style={{ color: "#666", fontSize: 14, fontWeight: 600 }}>⏳ Waiting for next pick… ({unsoldTeams.length} remaining)</div>
               )
             ) : (
-              <div style={{ color: "#10b981", fontSize: 18, fontWeight: 800, fontFamily: "'Georgia', serif" }}>🏆 Auction complete!</div>
+              <div style={{ color: "#10b981", fontSize: 18, fontWeight: 800, fontFamily: "'Inter', system-ui, sans-serif" }}>🏆 Auction complete!</div>
             )}
           </div>
         );
@@ -892,7 +898,7 @@ function AdminPanel({ teams, setTeams, onReset }) {
             ) : (
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#f59e0b", fontFamily: "'Georgia', serif" }}>{t.wins}W</div>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: "#f59e0b", fontFamily: "'Inter', system-ui, sans-serif" }}>{t.wins}W</div>
                   <div style={{ fontSize: 11, color: "#bbb" }}>${PAYOUTS[t.wins] || 0} out</div>
                 </div>
                 <button onClick={() => { setEditId(t.id); setEditWins(t.wins); }}
@@ -1693,18 +1699,18 @@ export default function App() {
   };
 
   const TABS = [
-    { id: "leaderboard", label: "🏆 Standings" },
-    { id: "bracket",     label: "🎯 Teams"     },
-    { id: "live",        label: "🔴 Live"       },
-    { id: "auction",     label: "🔨 Auction"   },
-    { id: "history",     label: "📜 History"   },
-    ...(isAdmin ? [{ id: "admin", label: "⚙️ Admin" }] : []),
+    { id: "leaderboard", label: "Standings" },
+    { id: "bracket",     label: "Teams"     },
+    { id: "live",        label: "Live"      },
+    { id: "auction",     label: "Auction"   },
+    { id: "history",     label: "History"   },
+    ...(isAdmin ? [{ id: "admin", label: "Admin" }] : []),
   ];
 
   if (dbStatus === "unconfigured") return <SetupGuide />;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f0f0ec", fontFamily: "'Georgia', 'Times New Roman', serif", color: "#1a1a18" }}>
+    <div style={{ minHeight: "100vh", background: "#f0f0ec", fontFamily: "'Inter', system-ui, sans-serif", color: "#1a1a18" }}>
       <div style={{
         background: "rgba(240,240,236,0.92)", backdropFilter: "blur(12px)",
         borderBottom: "1px solid #e0e0da", padding: "14px 20px",
@@ -1715,7 +1721,7 @@ export default function App() {
             <div>
               <div style={{ fontSize: 10, color: "#999", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase" }}>March Madness</div>
               <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.1, color: "#1a1a18" }}>
-                NatCon Bracket Challenge <span style={{ color: "#f59e0b" }}>2026</span>
+                Auction BracketTracker <span style={{ color: "#f59e0b" }}>2026</span>
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
