@@ -1886,7 +1886,7 @@ const sb = {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
       method: "POST",
       headers: { ...this.headers, "Prefer": "resolution=merge-duplicates,return=representation" },
-      body: JSON.stringify(row),
+      body: JSON.stringify(Array.isArray(row) ? row : [row]),
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
