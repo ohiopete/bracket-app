@@ -2162,13 +2162,20 @@ export default function App() {
   const [auctionKey, setAuctionKey] = useState(0); // increment to force AuctionRoom remount on reset
   const saveTimers = useRef({}); // per-team debounce timers keyed by team id
 
-  // ── Merge DB rows into local team state ──────────────────────────────────
+  // ── Merge DB rows into local team state (DB is source of truth) ─────────
   const applyRows = (rows) => {
-    setTeamsState(prev => prev.map(t => {
-      const row = rows.find(r => r.id === t.id && String(r.season) === String(SEASON));
-      if (!row) return t;
-      return { ...t, name: row.name ?? t.name, seed: row.seed ?? t.seed, region: row.region ?? t.region, owner: row.owner ?? t.owner, price: row.price ?? t.price, wins: row.wins ?? t.wins, alive: row.alive ?? t.alive };
-    }));
+    const seasonRows = rows.filter(r => String(r.season) === String(SEASON));
+    if (seasonRows.length === 0) return;
+    setTeamsState(seasonRows.map(r => ({
+      id: r.id, season: r.season,
+      name: r.name ?? "",
+      seed: r.seed ?? null,
+      region: r.region ?? null,
+      owner: r.owner ?? "",
+      price: r.price ?? 0,
+      wins: r.wins ?? 0,
+      alive: r.alive !== false,
+    })));
   };
 
   // ── Load from Supabase on mount ───────────────────────────────────────────
@@ -2183,7 +2190,12 @@ export default function App() {
 
     // Real-time subscription — any update from any device applies instantly
     const unsub = sb.subscribe("bracket_teams", SEASON, (row) => {
-      setTeamsState(prev => prev.map(t => t.id === row.id ? { ...t, name: row.name ?? t.name, seed: row.seed ?? t.seed, region: row.region ?? t.region, owner: row.owner, price: row.price, wins: row.wins, alive: row.alive } : t));
+      setTeamsState(prev => {
+        const exists = prev.some(t => t.id === row.id);
+        const updated = { id: row.id, season: row.season, name: row.name ?? "", seed: row.seed ?? null, region: row.region ?? null, owner: row.owner ?? "", price: row.price ?? 0, wins: row.wins ?? 0, alive: row.alive !== false };
+        if (exists) return prev.map(t => t.id === row.id ? { ...t, ...updated } : t);
+        return [...prev, updated]; // new team added by admin
+      });
     });
     return unsub;
   }, []);
@@ -2209,9 +2221,9 @@ export default function App() {
     setTeamsState(prev => {
       const next = typeof updater === "function" ? updater(prev) : updater;
       // Find changed teams and persist each one
-      next.forEach((t, i) => {
-        const old = prev[i];
-        if (old && (old.owner !== t.owner || old.price !== t.price || old.wins !== t.wins || old.alive !== t.alive)) {
+      next.forEach((t) => {
+        const old = prev.find(p => p.id === t.id);
+        if (!old || (old.owner !== t.owner || old.price !== t.price || old.wins !== t.wins || old.alive !== t.alive || old.name !== t.name || old.seed !== t.seed || old.region !== t.region)) {
           saveTeam(t);
         }
       });
