@@ -744,6 +744,36 @@ function BracketView({ teams }) {
           }}>{o}</button>
         ))}
       </div>
+      {/* Unassigned teams (pre-bracket) */}
+      {(() => { const unassigned = teams.filter(t => !t.region && (filterOwner === "All" || t.owner === filterOwner)); return unassigned.length > 0 ? (
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 10 }}>⏳ Pending Bracket Assignment · {unassigned.length} teams</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8 }}>
+            {unassigned.map((t, idx) => { const payout = PAYOUTS[t.wins] || 0; const net = payout - t.price; const isElim = t.alive === false; return (
+              <div key={idx} style={{ background: "#161b22", border: `1px solid ${t.owner ? OWNER_COLORS[t.owner] + "55" : "#30363d"}`, borderLeft: `3px solid ${t.owner ? OWNER_COLORS[t.owner] : "#f59e0b"}`, borderRadius: 8, padding: "10px 14px", opacity: filterOwner !== "All" && t.owner !== filterOwner ? 0.3 : 1 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 3 }}>
+                      <span style={{ fontSize: 11, background: "#2d1a00", color: "#f59e0b", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>?</span>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: "#e6edf3" }}>{t.name}</span>
+                    </div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <OwnerAvatar owner={t.owner} size={18} />
+                      <span style={{ fontSize: 12, color: t.owner ? OWNER_COLORS[t.owner] : "#bbb", fontWeight: 700 }}>{t.owner || "Unassigned"}</span>
+                      {t.price > 0 && <span style={{ fontSize: 11, color: "#484f58" }}>${t.price.toFixed(2)}</span>}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    {t.price > 0 && <div style={{ fontSize: 15, fontWeight: 900, color: net >= 0 ? "#10b981" : "#ef4444" }}>{net >= 0 ? "+" : ""}${net.toFixed(2)}</div>}
+                    <div style={{ fontSize: 11, color: "#484f58" }}>{t.wins}W · ${payout}</div>
+                  </div>
+                </div>
+              </div>
+            ); })}
+          </div>
+        </div>
+      ) : null; })()}
+
       {REGIONS.map(region => {
         const regionTeams = teams.filter(t => t.region === region && (filterOwner === "All" || t.owner === filterOwner)).sort((a, b) => a.seed - b.seed);
         if (regionTeams.length === 0) return null;
@@ -768,7 +798,7 @@ function BracketView({ teams }) {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div>
                         <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 3 }}>
-                          <span style={{ fontSize: 11, background: "#0d1117", color: "#8b949e", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>{t.seed}</span>
+                          {t.seed ? <span style={{ fontSize: 11, background: "#0d1117", color: "#8b949e", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>{t.seed}</span> : <span style={{ fontSize: 11, background: "#0d1117", color: "#484f58", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>?</span>}
                           <span style={{ fontSize: 14, fontWeight: 800, color: isElim ? "#484f58" : "#e6edf3", textDecoration: isElim ? "line-through" : "none" }}>{t.name}</span>
                           {isElim && <span style={{ fontSize: 10, background: "#2d1111", color: "#ef4444", border: "1px solid #fecaca", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>ELIM</span>}
                         </div>
@@ -1243,106 +1273,256 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
 }
 
 // ── ADMIN PANEL ───────────────────────────────────────────────────────────────
-function AdminPanel({ teams, setTeams, onReset }) {
+function AdminPanel({ teams, setTeams, onReset, onAddTeam, onDeleteTeam }) {
   const [search, setSearch] = useState("");
   const [editId, setEditId] = useState(null);
   const [editWins, setEditWins] = useState(0);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [adminSection, setAdminSection] = useState("teams"); // "teams" | "manager"
+
+  // Team manager state
+  const [newTeamName, setNewTeamName] = useState("");
+  const [editingTeam, setEditingTeam] = useState(null); // { id, name, seed, region }
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   const filtered = teams.filter(t =>
     t.name.toLowerCase().includes(search.toLowerCase()) ||
     (t.owner && t.owner.toLowerCase().includes(search.toLowerCase()))
   );
 
+  const seedsAssigned = teams.filter(t => t.seed && t.region).length;
+  const bracketReady = seedsAssigned >= 64;
+
   return (
     <div style={{ paddingBottom: 40 }}>
-      {/* Reset block */}
-      <div style={{ background: "#161b22", border: "1px solid #fecaca", borderRadius: 12, padding: 20, marginBottom: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-        <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>⚠ Reset Season</div>
-        <div style={{ fontSize: 13, color: "#8b949e", marginBottom: 14 }}>
-          Clears all owner assignments, prices, and win totals so you can run a fresh auction for a new year. Cannot be undone.
-        </div>
-        {!showResetConfirm ? (
-          <button onClick={() => setShowResetConfirm(true)}
-            style={{ background: "#161b22", color: "#ef4444", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 20px", fontWeight: 800, cursor: "pointer", fontSize: 13 }}>
-            Reset for New Season
-          </button>
-        ) : (
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontSize: 13, color: "#666" }}>Are you sure? This cannot be undone.</span>
-            <button onClick={() => { onReset(); setShowResetConfirm(false); }}
-              style={{ background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, cursor: "pointer" }}>
-              Yes, Reset Everything
-            </button>
-            <button onClick={() => setShowResetConfirm(false)}
-              style={{ background: "#161b22", color: "#8b949e", border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, cursor: "pointer" }}>
-              Cancel
-            </button>
-          </div>
-        )}
+
+      {/* Section toggle */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        {[["teams", "Update Teams"], ["manager", "Team Manager"]].map(([id, label]) => (
+          <button key={id} onClick={() => setAdminSection(id)} style={{
+            padding: "8px 18px", borderRadius: 20, fontWeight: 700, fontSize: 13, cursor: "pointer",
+            background: adminSection === id ? "#e6edf3" : "#21262d",
+            color: adminSection === id ? "#0d1117" : "#8b949e",
+            border: "none",
+          }}>{label}</button>
+        ))}
       </div>
 
-      {/* Win + eliminated editor */}
-      <div style={{ fontSize: 10, color: "#8b949e", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10 }}>Update Teams</div>
-      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search teams or owners..."
-        style={{ width: "100%", background: "#161b22", border: "1px solid #30363d", borderRadius: 10, padding: "12px 16px", color: "#e6edf3", fontSize: 14, outline: "none", marginBottom: 12, boxSizing: "border-box", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }} />
-      {[...filtered].sort((a, b) => b.wins - a.wins).map(t => {
-        const isElim = t.alive === false;
-        return (
-        <div key={t.id} style={{
-          background: "#161b22", border: `1px solid ${isElim ? "#161b22" : "#30363d"}`, borderRadius: 10,
-          padding: "12px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12,
-          opacity: isElim ? 0.6 : 1, boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
-        }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <span style={{ fontSize: 11, background: "#0d1117", color: "#8b949e", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>{t.seed}</span>
-              <span style={{ fontWeight: 700, color: isElim ? "#484f58" : "#e6edf3", textDecoration: isElim ? "line-through" : "none" }}>{t.name}</span>
-              <span style={{ fontSize: 11, color: "#484f58" }}>{t.region}</span>
-              {isElim && <span style={{ fontSize: 10, background: "#2d1111", color: "#ef4444", border: "1px solid #fecaca", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>ELIM</span>}
+      {/* ── UPDATE TEAMS section ── */}
+      {adminSection === "teams" && (
+        <>
+          {/* Reset block */}
+          <div style={{ background: "#161b22", border: "1px solid #fecaca", borderRadius: 12, padding: 20, marginBottom: 24 }}>
+            <div style={{ fontSize: 11, color: "#ef4444", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>⚠ Reset Season</div>
+            <div style={{ fontSize: 13, color: "#8b949e", marginBottom: 14 }}>
+              Clears all owner assignments, prices, and win totals so you can run a fresh auction for a new year. Cannot be undone.
             </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
-              <OwnerAvatar owner={t.owner} size={16} />
-              <span style={{ fontSize: 12, color: t.owner ? OWNER_COLORS[t.owner] : "#bbb" }}>{t.owner || "Unassigned"}</span>
-              {t.price > 0 && <span style={{ fontSize: 12, color: "#484f58" }}>${t.price.toFixed(2)}</span>}
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {editId === t.id ? (
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input type="number" min={0} max={6} value={editWins} onChange={e => setEditWins(parseInt(e.target.value) || 0)}
-                  style={{ width: 60, background: "#161b22", border: "1px solid #30363d", borderRadius: 6, padding: "6px 10px", color: "#e6edf3", fontWeight: 700, fontSize: 15, outline: "none", textAlign: "center" }} />
-                <button onClick={() => { setTeams(prev => prev.map(t2 => t2.id === t.id ? { ...t2, wins: editWins } : t2)); setEditId(null); }}
-                  style={{ background: "#10b981", color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontWeight: 800, cursor: "pointer" }}>✓</button>
-                <button onClick={() => setEditId(null)}
-                  style={{ background: "#161b22", color: "#8b949e", border: "none", borderRadius: 6, padding: "6px 12px", fontWeight: 800, cursor: "pointer" }}>✕</button>
-              </div>
+            {!showResetConfirm ? (
+              <button onClick={() => setShowResetConfirm(true)}
+                style={{ background: "#161b22", color: "#ef4444", border: "1px solid #fecaca", borderRadius: 8, padding: "10px 20px", fontWeight: 800, cursor: "pointer", fontSize: 13 }}>
+                Reset for New Season
+              </button>
             ) : (
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: "#f59e0b", fontFamily: "'Inter', system-ui, sans-serif" }}>{t.wins}W</div>
-                  <div style={{ fontSize: 11, color: "#484f58" }}>${PAYOUTS[t.wins] || 0} out</div>
-                </div>
-                <button onClick={() => { setEditId(t.id); setEditWins(t.wins); }}
-                  style={{ background: "#161b22", color: "#8b949e", border: "1px solid #30363d", borderRadius: 6, padding: "6px 12px", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>
-                  Wins
+              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontSize: 13, color: "#666" }}>Are you sure? This cannot be undone.</span>
+                <button onClick={() => { onReset(); setShowResetConfirm(false); }}
+                  style={{ background: "#ef4444", color: "#fff", border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, cursor: "pointer" }}>
+                  Yes, Reset Everything
                 </button>
-                <button
-                  onClick={() => setTeams(prev => prev.map(t2 => t2.id === t.id ? { ...t2, alive: isElim } : t2))}
-                  style={{
-                    background: isElim ? "#f0fdf4" : "#fff",
-                    color: isElim ? "#10b981" : "#ef4444",
-                    border: `1px solid ${isElim ? "#bbf7d0" : "#fecaca"}`,
-                    borderRadius: 6, padding: "6px 10px", fontWeight: 700, cursor: "pointer", fontSize: 12,
-                  }}>
-                  {isElim ? "Restore" : "Elim"}
+                <button onClick={() => setShowResetConfirm(false)}
+                  style={{ background: "#161b22", color: "#8b949e", border: "none", borderRadius: 8, padding: "10px 20px", fontWeight: 800, cursor: "pointer" }}>
+                  Cancel
                 </button>
               </div>
             )}
           </div>
-        </div>
-        );
-      })}
+
+          {/* Win + eliminated editor */}
+          <div style={{ fontSize: 10, color: "#8b949e", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10 }}>Update Teams</div>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search teams or owners..."
+            style={{ width: "100%", background: "#161b22", border: "1px solid #30363d", borderRadius: 10, padding: "12px 16px", color: "#e6edf3", fontSize: 14, outline: "none", marginBottom: 12, boxSizing: "border-box" }} />
+          {[...filtered].sort((a, b) => b.wins - a.wins).map(t => {
+            const isElim = t.alive === false;
+            return (
+              <div key={t.id} style={{
+                background: "#161b22", border: `1px solid ${isElim ? "#161b22" : "#30363d"}`, borderRadius: 10,
+                padding: "12px 16px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12,
+                opacity: isElim ? 0.6 : 1,
+              }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    {t.seed ? <span style={{ fontSize: 11, background: "#0d1117", color: "#8b949e", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>{t.seed}</span>
+                            : <span style={{ fontSize: 11, background: "#0d1117", color: "#484f58", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>?</span>}
+                    <span style={{ fontWeight: 700, color: isElim ? "#484f58" : "#e6edf3", textDecoration: isElim ? "line-through" : "none" }}>{t.name}</span>
+                    {t.region && <span style={{ fontSize: 11, color: "#484f58" }}>{t.region}</span>}
+                    {isElim && <span style={{ fontSize: 10, background: "#2d1111", color: "#ef4444", border: "1px solid #fecaca", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>ELIM</span>}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4 }}>
+                    <OwnerAvatar owner={t.owner} size={16} />
+                    <span style={{ fontSize: 12, color: t.owner ? OWNER_COLORS[t.owner] : "#bbb" }}>{t.owner || "Unassigned"}</span>
+                    {t.price > 0 && <span style={{ fontSize: 12, color: "#484f58" }}>${t.price.toFixed(2)}</span>}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {editId === t.id ? (
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <input type="number" min={0} max={6} value={editWins} onChange={e => setEditWins(parseInt(e.target.value) || 0)}
+                        style={{ width: 60, background: "#161b22", border: "1px solid #30363d", borderRadius: 6, padding: "6px 10px", color: "#e6edf3", fontWeight: 700, fontSize: 15, outline: "none", textAlign: "center" }} />
+                      <button onClick={() => { setTeams(prev => prev.map(t2 => t2.id === t.id ? { ...t2, wins: editWins } : t2)); setEditId(null); }}
+                        style={{ background: "#10b981", color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontWeight: 800, cursor: "pointer" }}>✓</button>
+                      <button onClick={() => setEditId(null)}
+                        style={{ background: "#161b22", color: "#8b949e", border: "none", borderRadius: 6, padding: "6px 12px", fontWeight: 800, cursor: "pointer" }}>✕</button>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: "#f59e0b" }}>{t.wins}W</div>
+                        <div style={{ fontSize: 11, color: "#484f58" }}>${PAYOUTS[t.wins] || 0} out</div>
+                      </div>
+                      <button onClick={() => { setEditId(t.id); setEditWins(t.wins); }}
+                        style={{ background: "#161b22", color: "#8b949e", border: "1px solid #30363d", borderRadius: 6, padding: "6px 12px", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>
+                        Wins
+                      </button>
+                      <button
+                        onClick={() => setTeams(prev => prev.map(t2 => t2.id === t.id ? { ...t2, alive: isElim } : t2))}
+                        style={{
+                          background: isElim ? "#f0fdf4" : "#fff",
+                          color: isElim ? "#10b981" : "#ef4444",
+                          border: `1px solid ${isElim ? "#bbf7d0" : "#fecaca"}`,
+                          borderRadius: 6, padding: "6px 10px", fontWeight: 700, cursor: "pointer", fontSize: 12,
+                        }}>
+                        {isElim ? "Restore" : "Elim"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </>
+      )}
+
+      {/* ── TEAM MANAGER section ── */}
+      {adminSection === "manager" && (
+        <>
+          {/* Status bar */}
+          <div style={{ background: "#161b22", border: `1px solid ${bracketReady ? "#10b98133" : "#f59e0b33"}`, borderRadius: 10, padding: "14px 18px", marginBottom: 20, display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 11, color: "#8b949e", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>Teams</div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: "#e6edf3" }}>{teams.length}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: "#8b949e", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>Seeds Assigned</div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: bracketReady ? "#10b981" : "#f59e0b" }}>{seedsAssigned} / 64</div>
+            </div>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <div style={{ fontSize: 12, color: bracketReady ? "#10b981" : "#f59e0b", fontWeight: 700 }}>
+                {bracketReady ? "✓ Bracket tab is live" : "⏳ Bracket tab hidden until 64 seeds assigned"}
+              </div>
+            </div>
+          </div>
+
+          {/* Add new team */}
+          <div style={{ background: "#161b22", border: "1px solid #30363d", borderRadius: 12, padding: 18, marginBottom: 20 }}>
+            <div style={{ fontSize: 11, color: "#8b949e", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>Add Team</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                value={newTeamName}
+                onChange={e => setNewTeamName(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && newTeamName.trim()) { onAddTeam(newTeamName.trim()); setNewTeamName(""); } }}
+                placeholder="Team name (e.g. Duke)"
+                style={{ flex: 1, background: "#0d1117", border: "1px solid #30363d", borderRadius: 8, padding: "10px 14px", color: "#e6edf3", fontSize: 14, outline: "none" }}
+              />
+              <button
+                onClick={() => { if (newTeamName.trim()) { onAddTeam(newTeamName.trim()); setNewTeamName(""); } }}
+                disabled={!newTeamName.trim()}
+                style={{ background: newTeamName.trim() ? "#10b981" : "#21262d", color: newTeamName.trim() ? "#000" : "#484f58", border: "none", borderRadius: 8, padding: "10px 18px", fontWeight: 800, cursor: newTeamName.trim() ? "pointer" : "default", fontSize: 14 }}>
+                + Add
+              </button>
+            </div>
+          </div>
+
+          {/* Team list with seed/region editing */}
+          <div style={{ fontSize: 10, color: "#8b949e", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10 }}>
+            All Teams · {teams.length} total
+          </div>
+          {[...teams].sort((a, b) => {
+            if (!a.region && b.region) return 1;
+            if (a.region && !b.region) return -1;
+            if (a.region !== b.region) return (a.region || "").localeCompare(b.region || "");
+            return (a.seed || 99) - (b.seed || 99);
+          }).map(t => (
+            <div key={t.id} style={{ background: "#161b22", border: "1px solid #30363d", borderRadius: 10, padding: "12px 16px", marginBottom: 8 }}>
+              {editingTeam?.id === t.id ? (
+                /* Editing row */
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  <input
+                    value={editingTeam.name}
+                    onChange={e => setEditingTeam(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Team name"
+                    style={{ flex: 2, minWidth: 120, background: "#0d1117", border: "1px solid #30363d", borderRadius: 6, padding: "8px 10px", color: "#e6edf3", fontSize: 14, outline: "none" }}
+                  />
+                  <input
+                    type="number" min={1} max={16}
+                    value={editingTeam.seed ?? ""}
+                    onChange={e => setEditingTeam(prev => ({ ...prev, seed: e.target.value ? parseInt(e.target.value) : null }))}
+                    placeholder="Seed"
+                    style={{ width: 70, background: "#0d1117", border: "1px solid #30363d", borderRadius: 6, padding: "8px 10px", color: "#e6edf3", fontSize: 14, outline: "none", textAlign: "center" }}
+                  />
+                  <select
+                    value={editingTeam.region ?? ""}
+                    onChange={e => setEditingTeam(prev => ({ ...prev, region: e.target.value || null }))}
+                    style={{ flex: 1, minWidth: 100, background: "#0d1117", border: "1px solid #30363d", borderRadius: 6, padding: "8px 10px", color: editingTeam.region ? "#e6edf3" : "#484f58", fontSize: 14, outline: "none" }}>
+                    <option value="">Region...</option>
+                    {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                  <button onClick={() => {
+                    setTeams(prev => prev.map(t2 => t2.id === t.id ? { ...t2, name: editingTeam.name, seed: editingTeam.seed, region: editingTeam.region } : t2));
+                    setEditingTeam(null);
+                  }} style={{ background: "#10b981", color: "#000", border: "none", borderRadius: 6, padding: "8px 14px", fontWeight: 800, cursor: "pointer" }}>✓ Save</button>
+                  <button onClick={() => setEditingTeam(null)} style={{ background: "#21262d", color: "#8b949e", border: "none", borderRadius: 6, padding: "8px 14px", fontWeight: 700, cursor: "pointer" }}>✕</button>
+                </div>
+              ) : (
+                /* Display row */
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      {t.seed ? <span style={{ fontSize: 11, background: "#0d1117", color: "#8b949e", borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}>{t.seed}</span>
+                               : <span style={{ fontSize: 11, background: "#2d1a00", color: "#f59e0b", borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}>?</span>}
+                      <span style={{ fontWeight: 700, color: "#e6edf3" }}>{t.name}</span>
+                      {t.region
+                        ? <span style={{ fontSize: 11, color: "#484f58" }}>{t.region}</span>
+                        : <span style={{ fontSize: 11, color: "#f59e0b" }}>No region</span>}
+                      {t.owner && <span style={{ fontSize: 11, color: OWNER_COLORS[t.owner], fontWeight: 700 }}>{t.owner}</span>}
+                    </div>
+                  </div>
+                  <button onClick={() => setEditingTeam({ id: t.id, name: t.name, seed: t.seed ?? null, region: t.region ?? null })}
+                    style={{ background: "#21262d", color: "#8b949e", border: "1px solid #30363d", borderRadius: 6, padding: "6px 12px", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>
+                    Edit
+                  </button>
+                  {deleteConfirm === t.id ? (
+                    <>
+                      <button onClick={() => { onDeleteTeam(t.id); setDeleteConfirm(null); }}
+                        style={{ background: "#ef4444", color: "#fff", border: "none", borderRadius: 6, padding: "6px 12px", fontWeight: 800, cursor: "pointer", fontSize: 12 }}>
+                        Confirm Delete
+                      </button>
+                      <button onClick={() => setDeleteConfirm(null)}
+                        style={{ background: "#21262d", color: "#8b949e", border: "none", borderRadius: 6, padding: "6px 10px", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <button onClick={() => setDeleteConfirm(t.id)}
+                      style={{ background: "#21262d", color: "#ef4444", border: "1px solid #fecaca22", borderRadius: 6, padding: "6px 10px", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>
+                      ✕
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
 }
@@ -2052,7 +2232,7 @@ export default function App() {
     setTeamsState(prev => prev.map(t => {
       const row = rows.find(r => r.id === t.id && String(r.season) === String(SEASON));
       if (!row) return t;
-      return { ...t, owner: row.owner ?? t.owner, price: row.price ?? t.price, wins: row.wins ?? t.wins, alive: row.alive ?? t.alive };
+      return { ...t, name: row.name ?? t.name, seed: row.seed ?? t.seed, region: row.region ?? t.region, owner: row.owner ?? t.owner, price: row.price ?? t.price, wins: row.wins ?? t.wins, alive: row.alive ?? t.alive };
     }));
   };
 
@@ -2068,7 +2248,7 @@ export default function App() {
 
     // Real-time subscription — any update from any device applies instantly
     const unsub = sb.subscribe("bracket_teams", SEASON, (row) => {
-      setTeamsState(prev => prev.map(t => t.id === row.id ? { ...t, owner: row.owner, price: row.price, wins: row.wins, alive: row.alive } : t));
+      setTeamsState(prev => prev.map(t => t.id === row.id ? { ...t, name: row.name ?? t.name, seed: row.seed ?? t.seed, region: row.region ?? t.region, owner: row.owner, price: row.price, wins: row.wins, alive: row.alive } : t));
     });
     return unsub;
   }, []);
@@ -2080,7 +2260,7 @@ export default function App() {
     saveTimers.current[team.id] = setTimeout(async () => {
       setSyncMsg("Saving…");
       try {
-        await sb.upsert("bracket_teams", { id: team.id, season: SEASON, owner: team.owner, price: team.price, wins: team.wins, alive: team.alive !== false });
+        await sb.upsert("bracket_teams", { id: team.id, season: SEASON, name: team.name, seed: team.seed ?? null, region: team.region ?? null, owner: team.owner, price: team.price, wins: team.wins, alive: team.alive !== false });
         setSyncMsg("✓ Saved");
         setTimeout(() => setSyncMsg(""), 2000);
       } catch {
@@ -2119,7 +2299,7 @@ export default function App() {
       for (const chunk of chunks) {
         try {
           await Promise.all(chunk.map(t =>
-            sb.upsert("bracket_teams", { id: t.id, season: SEASON, owner: "", price: 0, wins: 0, alive: true })
+            sb.upsert("bracket_teams", { id: t.id, season: SEASON, name: t.name, seed: t.seed ?? null, region: t.region ?? null, owner: "", price: 0, wins: 0, alive: true })
           ));
         } catch { errors++; }
       }
@@ -2129,6 +2309,30 @@ export default function App() {
       } catch { errors++; }
       setSyncMsg(errors === 0 ? "✓ Reset complete" : `⚠ Reset partial (${errors} errors)`);
       setTimeout(() => setSyncMsg(""), 4000);
+    }
+  };
+
+  // ── Add a new team (pre-bracket auction) ─────────────────────────────────
+  const handleAddTeam = (name) => {
+    const maxId = Math.max(...teams.map(t => t.id), 0);
+    const newTeam = { id: maxId + 1, name, seed: null, region: null, owner: "", price: 0, wins: 0, alive: true };
+    setTeamsState(prev => [...prev, newTeam]);
+    // Persist to Supabase immediately
+    if (!NOT_CONFIGURED && dbStatus === "ok") {
+      sb.upsert("bracket_teams", { id: newTeam.id, season: SEASON, name, seed: null, region: null, owner: "", price: 0, wins: 0, alive: true })
+        .catch(e => console.error("Add team failed:", e));
+    }
+  };
+
+  // ── Delete a team (didn't make bracket) ──────────────────────────────────
+  const handleDeleteTeam = async (id) => {
+    setTeamsState(prev => prev.filter(t => t.id !== id));
+    if (!NOT_CONFIGURED && dbStatus === "ok") {
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/bracket_teams?id=eq.${id}&season=eq.${SEASON}`, {
+          method: "DELETE", headers: SB_HEADERS,
+        });
+      } catch (e) { console.error("Delete team failed:", e); }
     }
   };
 
@@ -2213,11 +2417,11 @@ export default function App() {
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 16px" }}>
         {tab === "leaderboard" && <Leaderboard teams={teams} />}
         {tab === "bracket"     && <BracketView teams={teams} />}
-        {tab === "tournament"  && <TournamentBracket teams={teams} />}
+        {tab === "tournament"  && (() => { const seeded = teams.filter(t => t.seed && t.region); return seeded.length < 64 ? (<div style={{ textAlign: "center", padding: 60, color: "#8b949e" }}><div style={{ fontSize: 32, marginBottom: 16 }}>🗓️</div><div style={{ fontWeight: 800, fontSize: 18, color: "#e6edf3", marginBottom: 8 }}>Bracket not set yet</div><div style={{ fontSize: 14 }}>Available after Selection Sunday once seeds and regions are assigned.</div><div style={{ marginTop: 12, fontSize: 13, color: "#484f58" }}>{seeded.length} of 64 teams have seeds assigned</div></div>) : <TournamentBracket teams={teams} />; })()}
         {tab === "live"        && <LiveScores teams={teams} />}
         {tab === "auction"     && <AuctionRoom key={auctionKey} teams={teams} setTeams={setTeams} isAdmin={isAdmin} />}
         {tab === "history"     && <HistoryTab />}
-        {tab === "admin"   && isAdmin && <AdminPanel teams={teams} setTeams={setTeams} onReset={handleReset} />}
+        {tab === "admin"   && isAdmin && <AdminPanel teams={teams} setTeams={setTeams} onReset={handleReset} onAddTeam={handleAddTeam} onDeleteTeam={handleDeleteTeam} />}
       </div>
     </div>
   );
