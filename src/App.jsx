@@ -282,7 +282,7 @@ function Leaderboard({ teams }) {
                       <div>
                         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                           <span style={{ fontSize: 10, color: "#484f58", fontWeight: 700 }}>#{t.seed}</span>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: isElim ? "#bbb" : "#1a1a18", textDecoration: isElim ? "line-through" : "none" }}>{t.name}</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: isElim ? "#484f58" : "#e6edf3", textDecoration: isElim ? "line-through" : "none" }}>{t.name}</span>
                         </div>
                         <div style={{ fontSize: 11, color: "#8b949e", marginTop: 2 }}>Paid ${t.price.toFixed(2)} · {t.wins}W</div>
                       </div>
@@ -337,7 +337,7 @@ function TeamSlot({ team, round, isWinner, isElim }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontSize: 12, fontWeight: isWinner ? 800 : 600,
-          color: eliminated && !isWinner ? "#bbb" : "#1a1a18",
+          color: eliminated && !isWinner ? "#484f58" : "#e6edf3",
           textDecoration: eliminated && !isWinner ? "line-through" : "none",
           whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
         }}>{team.name}</div>
@@ -522,10 +522,10 @@ function BracketView({ teams }) {
         {["All", ...OWNERS].map(o => (
           <button key={o} onClick={() => setFilterOwner(o)} style={{
             padding: "6px 16px", borderRadius: 20,
-            border: filterOwner === o ? "none" : "1px solid #e0e0da",
+            border: filterOwner === o ? "none" : "1px solid #30363d",
             cursor: "pointer",
-            background: filterOwner === o ? (OWNER_COLORS[o] || "#1a1a18") : "#fff",
-            color: filterOwner === o ? (o === "All" ? "#fff" : "#000") : "#888",
+            background: filterOwner === o ? (OWNER_COLORS[o] || "#e6edf3") : "#21262d",
+            color: filterOwner === o ? "#000" : "#8b949e",
             fontWeight: 700, fontSize: 13, transition: "all 0.15s",
             boxShadow: filterOwner === o ? `0 2px 8px ${(OWNER_COLORS[o] || "#000")}44` : "none",
           }}>{o}</button>
@@ -556,7 +556,7 @@ function BracketView({ teams }) {
                       <div>
                         <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 3 }}>
                           <span style={{ fontSize: 11, background: "#0d1117", color: "#8b949e", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>{t.seed}</span>
-                          <span style={{ fontSize: 14, fontWeight: 800, color: isElim ? "#bbb" : "#1a1a18", textDecoration: isElim ? "line-through" : "none" }}>{t.name}</span>
+                          <span style={{ fontSize: 14, fontWeight: 800, color: isElim ? "#484f58" : "#e6edf3", textDecoration: isElim ? "line-through" : "none" }}>{t.name}</span>
                           {isElim && <span style={{ fontSize: 10, background: "#2d1111", color: "#ef4444", border: "1px solid #fecaca", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>ELIM</span>}
                         </div>
                         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -938,7 +938,7 @@ function AuctionRoom({ teams, setTeams, isAdmin }) {
               {goingStage === 0 && (
                 <button onClick={() => advanceGoingStage(1)} disabled={!currentLeader} style={{
                   background: currentLeader ? "#e6edf3" : "#2a2a26",
-                  color: currentLeader ? "#1a1a18" : "#555",
+                  color: currentLeader ? "#0d1117" : "#555",
                   border: "none", borderRadius: 50, padding: "12px 24px",
                   fontSize: 14, fontWeight: 800, cursor: currentLeader ? "pointer" : "default",
                 }}>Going Once…</button>
@@ -1084,7 +1084,7 @@ function AdminPanel({ teams, setTeams, onReset }) {
           <div style={{ flex: 1 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <span style={{ fontSize: 11, background: "#0d1117", color: "#8b949e", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>{t.seed}</span>
-              <span style={{ fontWeight: 700, color: isElim ? "#bbb" : "#1a1a18", textDecoration: isElim ? "line-through" : "none" }}>{t.name}</span>
+              <span style={{ fontWeight: 700, color: isElim ? "#484f58" : "#e6edf3", textDecoration: isElim ? "line-through" : "none" }}>{t.name}</span>
               <span style={{ fontSize: 11, color: "#484f58" }}>{t.region}</span>
               {isElim && <span style={{ fontSize: 10, background: "#2d1111", color: "#ef4444", border: "1px solid #fecaca", borderRadius: 4, padding: "1px 5px", fontWeight: 700 }}>ELIM</span>}
             </div>
@@ -1194,7 +1194,7 @@ function HistoryTab() {
         {years.map(y => (
           <button key={y} onClick={() => { setSelectedYear(y); setExpandedOwner(null); }} style={{
             padding: "6px 16px", borderRadius: 8, border: "none", cursor: "pointer",
-            background: selectedYear === y ? "#1a1a18" : "#161b22",
+            background: selectedYear === y ? "#30363d" : "#21262d",
             color: selectedYear === y ? "#0d1117" : "#999",
             fontWeight: 800, fontSize: 14,
           }}>{y}</button>
@@ -1216,7 +1216,7 @@ function HistoryTab() {
             {["standings", "teams"].map(v => (
               <button key={v} onClick={() => setView(v)} style={{
                 padding: "6px 14px", borderRadius: 8, border: "none", cursor: "pointer",
-                background: view === v ? "#1a1a18" : "#30363d",
+                background: view === v ? "#30363d" : "#21262d",
                 color: view === v ? "#0d1117" : "#999", fontWeight: 700, fontSize: 12,
                 textTransform: "capitalize",
               }}>{v}</button>
@@ -1499,7 +1499,7 @@ function LiveScores({ teams }) {
           ].map(f => (
             <button key={f.id} onClick={() => setFilter(f.id)} style={{
               padding: "6px 14px", borderRadius: 20, border: "none", cursor: "pointer",
-              background: filter === f.id ? "#1a1a18" : "#161b22",
+              background: filter === f.id ? "#30363d" : "#21262d",
               color: filter === f.id ? "#0d1117" : "#999",
               fontWeight: 700, fontSize: 12,
             }}>{f.label}</button>
@@ -1590,7 +1590,7 @@ function LiveScores({ teams }) {
                   <div key={idx} style={{
                     display: "flex", alignItems: "center", gap: 12,
                     padding: "8px 0",
-                    borderBottom: idx === 0 ? "1px solid #f0f0ec" : "none",
+                    borderBottom: idx === 0 ? "1px solid #21262d" : "none",
                     opacity: dimmed ? 0.45 : 1,
                   }}>
                     {/* Owner avatar */}
@@ -1604,7 +1604,7 @@ function LiveScores({ teams }) {
                             {side.poolTeam.seed}
                           </span>
                         )}
-                        <span style={{ fontWeight: side.winner ? 900 : 700, fontSize: 15, color: side.winner ? "#1a1a18" : "#bbb" }}>
+                        <span style={{ fontWeight: side.winner ? 900 : 700, fontSize: 15, color: side.winner ? "#e6edf3" : "#484f58" }}>
                           {side.espnName}
                         </span>
                         {side.winner && <span style={{ fontSize: 11, color: "#10b981" }}>✓</span>}
@@ -1626,7 +1626,7 @@ function LiveScores({ teams }) {
                     )}
 
                     {/* Score */}
-                    <div style={{ fontSize: 22, fontWeight: 900, minWidth: 36, textAlign: "right", color: side.winner ? "#1a1a18" : "#999" }}>
+                    <div style={{ fontSize: 22, fontWeight: 900, minWidth: 36, textAlign: "right", color: side.winner ? "#e6edf3" : "#484f58" }}>
                       {g.status === "STATUS_SCHEDULED" ? "—" : side.score}
                     </div>
                   </div>
