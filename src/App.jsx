@@ -322,12 +322,12 @@ function TeamSlot({ team, round, isWinner, isElim }) {
   return (
     <div style={{
       height: 44, borderRadius: 6,
-      background: isWinner ? "#fff" : eliminated ? "#f9f9f8" : "#fff",
+      background: isWinner ? "#21262d" : eliminated ? "#161b22" : "#1c2128",
       border: `1px solid ${isWinner ? color : "#30363d"}`,
-      borderLeft: `3px solid ${isWinner ? color : eliminated ? "#30363d" : "#30363d"}`,
+      borderLeft: `3px solid ${isWinner ? color : eliminated ? "#21262d" : "#30363d"}`,
       display: "flex", alignItems: "center", gap: 8, padding: "0 10px",
-      opacity: eliminated && !isWinner ? 0.45 : 1,
-      boxShadow: isWinner ? `0 1px 6px ${color}33` : "none",
+      opacity: eliminated && !isWinner ? 0.4 : 1,
+      boxShadow: isWinner ? `0 1px 6px ${color}44` : "none",
       transition: "all 0.15s",
     }}>
       <span style={{
