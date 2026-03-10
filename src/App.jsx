@@ -1865,27 +1865,27 @@ function LiveScores({ teams }) {
 // SUPABASE_URL  : looks like https://xxxxxxxxxxxx.supabase.co
 // SUPABASE_KEY  : the "anon public" key (safe to expose in frontend code)
 const SUPABASE_URL = "https://vbvaiiqeffngafbcwypl.supabase.co";
-const SUPABASE_KEY = "sb_publishable_Ie0ckjix_6PojcHiS6qwTQ_zarlCVXa";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZidmFpaXFlZmZuZ2FmYmN3eXBsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5MTE1NzcsImV4cCI6MjA4ODQ4NzU3N30.8s2Cy0LT5Ac23Xirv4TBoj4GXs-lfFBRC4ipq553Z2o";
 const NOT_CONFIGURED = SUPABASE_URL === "YOUR_SUPABASE_URL";
 
 // Lightweight Supabase REST helpers — no SDK needed
+const SB_HEADERS = {
+  "Content-Type": "application/json",
+  "apikey": SUPABASE_KEY,
+  "Authorization": `Bearer ${SUPABASE_KEY}`,
+  "Prefer": "return=representation",
+};
 const sb = {
-  headers: {
-    "Content-Type": "application/json",
-    "apikey": SUPABASE_KEY,
-    "Authorization": `Bearer ${SUPABASE_KEY}`,
-    "Prefer": "return=representation",
-  },
   async get(table, match = {}) {
     const params = Object.entries(match).map(([k, v]) => `${k}=eq.${encodeURIComponent(v)}`).join("&");
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, { headers: this.headers });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, { headers: SB_HEADERS });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
   async upsert(table, row) {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
       method: "POST",
-      headers: { ...this.headers, "Prefer": "resolution=merge-duplicates,return=representation" },
+      headers: { ...SB_HEADERS, "Prefer": "resolution=merge-duplicates,return=representation" },
       body: JSON.stringify(Array.isArray(row) ? row : [row]),
     });
     if (!res.ok) throw new Error(await res.text());
@@ -2156,7 +2156,7 @@ export default function App() {
             <div>
               <div style={{ fontSize: 10, color: "#8b949e", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase" }}>March Madness</div>
               <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.1, color: "#e6edf3" }}>
-                Auction BracketTracker <span style={{ color: "#f59e0b" }}>2026</span>
+                Auction Bracket <span style={{ color: "#f59e0b" }}>2025</span>
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
