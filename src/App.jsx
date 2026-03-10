@@ -15,73 +15,8 @@ const OWNER_COLORS = {
   Brent: "#60a5fa", Craig: "#f43f5e", Matt: "#facc15",
 };
 
-// ── 2025 Teams ────────────────────────────────────────────────────────────────
-const TEAMS_2025 = [
-  { id: 1,  region: "South",   seed: 1,  name: "Auburn",          owner: "", price: 0, wins: 4 },
-  { id: 2,  region: "South",   seed: 2,  name: "Michigan State",  owner: "", price: 0, wins: 3 },
-  { id: 3,  region: "South",   seed: 3,  name: "Iowa State",      owner: "", price: 0, wins: 1 },
-  { id: 4,  region: "South",   seed: 4,  name: "Texas A&M",       owner: "", price: 0, wins: 1 },
-  { id: 5,  region: "South",   seed: 5,  name: "Michigan",        owner: "", price: 0, wins: 2 },
-  { id: 6,  region: "South",   seed: 6,  name: "North Carolina",  owner: "", price: 0, wins: 0 },
-  { id: 7,  region: "South",   seed: 7,  name: "Marquette",       owner: "", price: 0, wins: 0 },
-  { id: 8,  region: "South",   seed: 8,  name: "Louisville",      owner: "", price: 0, wins: 0 },
-  { id: 9,  region: "South",   seed: 9,  name: "Creighton",       owner: "", price: 0, wins: 1 },
-  { id: 10, region: "South",   seed: 10, name: "New Mexico",      owner: "", price: 0, wins: 1 },
-  { id: 11, region: "South",   seed: 11, name: "Ole Miss",        owner: "", price: 0, wins: 2 },
-  { id: 12, region: "South",   seed: 12, name: "UC San Diego",    owner: "", price: 0, wins: 0 },
-  { id: 13, region: "South",   seed: 13, name: "Yale",            owner: "", price: 0, wins: 0 },
-  { id: 14, region: "South",   seed: 14, name: "Lipscomb",        owner: "", price: 0, wins: 0 },
-  { id: 15, region: "South",   seed: 15, name: "Bryant",          owner: "", price: 0, wins: 0 },
-  { id: 16, region: "South",   seed: 16, name: "Alabama State",   owner: "", price: 0, wins: 0 },
-  { id: 17, region: "West",    seed: 1,  name: "Florida",         owner: "", price: 0, wins: 6 },
-  { id: 18, region: "West",    seed: 2,  name: "St. John's",      owner: "", price: 0, wins: 1 },
-  { id: 19, region: "West",    seed: 3,  name: "Texas Tech",      owner: "", price: 0, wins: 3 },
-  { id: 20, region: "West",    seed: 4,  name: "Maryland",        owner: "", price: 0, wins: 2 },
-  { id: 21, region: "West",    seed: 5,  name: "Memphis",         owner: "", price: 0, wins: 0 },
-  { id: 22, region: "West",    seed: 6,  name: "Missouri",        owner: "", price: 0, wins: 0 },
-  { id: 23, region: "West",    seed: 7,  name: "Kansas",          owner: "", price: 0, wins: 0 },
-  { id: 24, region: "West",    seed: 8,  name: "UConn",           owner: "", price: 0, wins: 1 },
-  { id: 25, region: "West",    seed: 9,  name: "Oklahoma",        owner: "", price: 0, wins: 0 },
-  { id: 26, region: "West",    seed: 10, name: "Arkansas",        owner: "", price: 0, wins: 2 },
-  { id: 27, region: "West",    seed: 11, name: "Drake",           owner: "", price: 0, wins: 1 },
-  { id: 28, region: "West",    seed: 12, name: "Colorado State",  owner: "", price: 0, wins: 1 },
-  { id: 29, region: "West",    seed: 13, name: "Grand Canyon",    owner: "", price: 0, wins: 0 },
-  { id: 30, region: "West",    seed: 14, name: "UNC Wilmington",  owner: "", price: 0, wins: 0 },
-  { id: 31, region: "West",    seed: 15, name: "Omaha",           owner: "", price: 0, wins: 0 },
-  { id: 32, region: "West",    seed: 16, name: "Norfolk State",   owner: "", price: 0, wins: 0 },
-  { id: 33, region: "East",    seed: 1,  name: "Duke",            owner: "", price: 0, wins: 4 },
-  { id: 34, region: "East",    seed: 2,  name: "Alabama",         owner: "", price: 0, wins: 3 },
-  { id: 35, region: "East",    seed: 3,  name: "Wisconsin",       owner: "", price: 0, wins: 1 },
-  { id: 36, region: "East",    seed: 4,  name: "Arizona",         owner: "", price: 0, wins: 2 },
-  { id: 37, region: "East",    seed: 5,  name: "Oregon",          owner: "", price: 0, wins: 1 },
-  { id: 38, region: "East",    seed: 6,  name: "BYU",             owner: "", price: 0, wins: 2 },
-  { id: 39, region: "East",    seed: 7,  name: "Saint Mary's",    owner: "", price: 0, wins: 1 },
-  { id: 40, region: "East",    seed: 8,  name: "Baylor",          owner: "", price: 0, wins: 1 },
-  { id: 41, region: "East",    seed: 9,  name: "Mississippi St.", owner: "", price: 0, wins: 0 },
-  { id: 42, region: "East",    seed: 10, name: "Vanderbilt",      owner: "", price: 0, wins: 0 },
-  { id: 43, region: "East",    seed: 11, name: "VCU",             owner: "", price: 0, wins: 0 },
-  { id: 44, region: "East",    seed: 12, name: "Liberty",         owner: "", price: 0, wins: 0 },
-  { id: 45, region: "East",    seed: 13, name: "Akron",           owner: "", price: 0, wins: 0 },
-  { id: 46, region: "East",    seed: 14, name: "Montana",         owner: "", price: 0, wins: 0 },
-  { id: 47, region: "East",    seed: 15, name: "Robert Morris",   owner: "", price: 0, wins: 0 },
-  { id: 48, region: "East",    seed: 16, name: "Mt. St. Mary's",  owner: "", price: 0, wins: 0 },
-  { id: 49, region: "Midwest", seed: 1,  name: "Houston",         owner: "", price: 0, wins: 5 },
-  { id: 50, region: "Midwest", seed: 2,  name: "Tennessee",       owner: "", price: 0, wins: 3 },
-  { id: 51, region: "Midwest", seed: 3,  name: "Kentucky",        owner: "", price: 0, wins: 2 },
-  { id: 52, region: "Midwest", seed: 4,  name: "Purdue",          owner: "", price: 0, wins: 2 },
-  { id: 53, region: "Midwest", seed: 5,  name: "Clemson",         owner: "", price: 0, wins: 0 },
-  { id: 54, region: "Midwest", seed: 6,  name: "Xavier",          owner: "", price: 0, wins: 0 },
-  { id: 55, region: "Midwest", seed: 7,  name: "UCLA",            owner: "", price: 0, wins: 1 },
-  { id: 56, region: "Midwest", seed: 8,  name: "Georgia",         owner: "", price: 0, wins: 0 },
-  { id: 57, region: "Midwest", seed: 9,  name: "Gonzaga",         owner: "", price: 0, wins: 1 },
-  { id: 58, region: "Midwest", seed: 10, name: "Utah State",      owner: "", price: 0, wins: 0 },
-  { id: 59, region: "Midwest", seed: 11, name: "Illinois",        owner: "", price: 0, wins: 1 },
-  { id: 60, region: "Midwest", seed: 12, name: "McNeese",         owner: "", price: 0, wins: 1 },
-  { id: 61, region: "Midwest", seed: 13, name: "High Point",      owner: "", price: 0, wins: 0 },
-  { id: 62, region: "Midwest", seed: 14, name: "Troy",            owner: "", price: 0, wins: 0 },
-  { id: 63, region: "Midwest", seed: 15, name: "Wofford",         owner: "", price: 0, wins: 0 },
-  { id: 64, region: "Midwest", seed: 16, name: "SIUE",            owner: "", price: 0, wins: 0 },
-];
+// ── 2026 Teams (loaded via Admin → Team Manager) ────────────────────────────
+const TEAMS_2026 = [];
 
 // ── Historical Data ───────────────────────────────────────────────────────────
 const HISTORY = {
@@ -2214,10 +2149,10 @@ insert into auction_state (id) values (1) on conflict do nothing;`;
 }
 
 // ── APP ───────────────────────────────────────────────────────────────────────
-const SEASON = 2025;
+const SEASON = 2026;
 
 export default function App() {
-  const [teams, setTeamsState] = useState(TEAMS_2025.map(t => ({ ...t })));
+  const [teams, setTeamsState] = useState(TEAMS_2026.map(t => ({ ...t })));
   const [dbStatus, setDbStatus] = useState("loading"); // loading | ok | error
   const [syncMsg, setSyncMsg] = useState("");
   const [tab, setTab] = useState("leaderboard");
@@ -2286,7 +2221,7 @@ export default function App() {
 
   // ── Reset: wipe DB rows + local state ────────────────────────────────────
   const handleReset = async () => {
-    const fresh = TEAMS_2025.map(t => ({ ...t, owner: "", price: 0, wins: 0, alive: true }));
+    const fresh = TEAMS_2026.map(t => ({ ...t, owner: "", price: 0, wins: 0, alive: true }));
     setTeamsState(fresh);
     setAuctionKey(k => k + 1); // force AuctionRoom to remount and clear local state
     setTab("leaderboard");
@@ -2360,7 +2295,7 @@ export default function App() {
             <div>
               <div style={{ fontSize: 10, color: "#8b949e", fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase" }}>March Madness</div>
               <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: "-0.02em", lineHeight: 1.1, color: "#e6edf3" }}>
-                Auction Bracket <span style={{ color: "#f59e0b" }}>2025</span>
+                Auction Bracket <span style={{ color: "#f59e0b" }}>2026</span>
               </div>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
