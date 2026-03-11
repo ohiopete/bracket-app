@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback  } from "react";
 
 // Load Inter from Google Fonts
 const _fontLink = document.createElement("link");
@@ -2164,6 +2164,488 @@ insert into auction_state (id) values (1) on conflict do nothing;`;
     </div>
   );
 }
+// ── AUTO-BIDDER ───────────────────────────────────────────────────────────────
+// Heuristic: EV = sum over rounds of P(reach round R) * payout(R)
+// Max bid = EV * discountFactor, scaled to remaining budget
+// Sources: DraftKings/BetMGM odds as of March 11, 2026
+
+const TEAM_ODDS_2026 = {
+  // name: { champProb (implied from odds), f4Prob (from DK Final Four odds), projSeed }
+  "Duke":          { champProb: 0.235, f4Prob: 0.643, projSeed: 1 },
+  "Michigan":      { champProb: 0.227, f4Prob: 0.615, projSeed: 1 },
+  "Arizona":       { champProb: 0.174, f4Prob: 0.545, projSeed: 1 },
+  "Florida":       { champProb: 0.114, f4Prob: 0.435, projSeed: 1 },
+  "Houston":       { champProb: 0.076, f4Prob: 0.303, projSeed: 2 },
+  "Illinois":      { champProb: 0.048, f4Prob: 0.238, projSeed: 2 },
+  "UConn":         { champProb: 0.043, f4Prob: 0.200, projSeed: 2 },
+  "Iowa State":    { champProb: 0.040, f4Prob: 0.190, projSeed: 3 },
+  "Michigan State":{ champProb: 0.024, f4Prob: 0.091, projSeed: 2 },
+  "Purdue":        { champProb: 0.025, f4Prob: 0.095, projSeed: 3 },
+  "Kansas":        { champProb: 0.028, f4Prob: 0.118, projSeed: 4 },
+  "Tennessee":     { champProb: 0.021, f4Prob: 0.095, projSeed: 4 },
+  "Nebraska":      { champProb: 0.022, f4Prob: 0.120, projSeed: 3 },
+  "Kentucky":      { champProb: 0.020, f4Prob: 0.110, projSeed: 3 },
+  "Texas Tech":    { champProb: 0.018, f4Prob: 0.090, projSeed: 4 },
+  "Arkansas":      { champProb: 0.021, f4Prob: 0.083, projSeed: 5 },
+  "Alabama":       { champProb: 0.021, f4Prob: 0.083, projSeed: 5 },
+  "Gonzaga":       { champProb: 0.017, f4Prob: 0.072, projSeed: 5 },
+  "Virginia":      { champProb: 0.012, f4Prob: 0.070, projSeed: 4 },
+  "St. John's":    { champProb: 0.015, f4Prob: 0.065, projSeed: 5 },
+  "Marquette":     { champProb: 0.010, f4Prob: 0.050, projSeed: 6 },
+  "UCLA":          { champProb: 0.009, f4Prob: 0.045, projSeed: 6 },
+  "BYU":           { champProb: 0.008, f4Prob: 0.040, projSeed: 6 },
+  "Villanova":     { champProb: 0.007, f4Prob: 0.035, projSeed: 7 },
+};
+
+// Historical seed win-rate base rates (1985–2025)
+const HIST_RATES = {
+  1:  { r1:0.99, r2:0.93, s16:0.75, e8:0.55, f4:0.42 },
+  2:  { r1:0.94, r2:0.82, s16:0.55, e8:0.36, f4:0.24 },
+  3:  { r1:0.85, r2:0.66, s16:0.40, e8:0.22, f4:0.14 },
+  4:  { r1:0.79, r2:0.59, s16:0.33, e8:0.16, f4:0.10 },
+  5:  { r1:0.67, r2:0.46, s16:0.23, e8:0.11, f4:0.07 },
+  6:  { r1:0.63, r2:0.40, s16:0.19, e8:0.09, f4:0.05 },
+  7:  { r1:0.61, r2:0.36, s16:0.16, e8:0.07, f4:0.04 },
+  8:  { r1:0.51, r2:0.26, s16:0.10, e8:0.04, f4:0.02 },
+  9:  { r1:0.49, r2:0.24, s16:0.09, e8:0.03, f4:0.02 },
+  10: { r1:0.39, r2:0.20, s16:0.08, e8:0.03, f4:0.01 },
+  11: { r1:0.37, r2:0.18, s16:0.07, e8:0.02, f4:0.01 },
+  12: { r1:0.35, r2:0.18, s16:0.06, e8:0.02, f4:0.01 },
+  13: { r1:0.21, r2:0.07, s16:0.02, e8:0.01, f4:0.00 },
+  14: { r1:0.15, r2:0.04, s16:0.01, e8:0.00, f4:0.00 },
+  15: { r1:0.06, r2:0.01, s16:0.00, e8:0.00, f4:0.00 },
+  16: { r1:0.01, r2:0.00, s16:0.00, e8:0.00, f4:0.00 },
+};
+
+function calcEV(team) {
+  // team has: name, seed (actual or projected), owner (may be empty during auction)
+  const seed = team.seed || 8;
+  const hist = HIST_RATES[seed] || HIST_RATES[16];
+
+  // Try to find market odds by fuzzy name match
+  const nameKey = Object.keys(TEAM_ODDS_2026).find(k =>
+    team.name?.toLowerCase().includes(k.toLowerCase()) ||
+    k.toLowerCase().includes(team.name?.toLowerCase())
+  );
+  const mkt = nameKey ? TEAM_ODDS_2026[nameKey] : null;
+
+  // Blend market (60%) + historical (40%) for f4 and champ
+  const f4   = mkt ? 0.6 * mkt.f4Prob   + 0.4 * hist.f4  : hist.f4;
+  const champ = mkt ? 0.6 * mkt.champProb + 0.4 * hist.f4 * 0.12 : hist.f4 * 0.08;
+
+  // Derive intermediate round probs (capped sensibly)
+  const p1  = hist.r1;
+  const p2  = Math.min(hist.r2,  f4 * 2.8);
+  const p3  = Math.min(hist.s16, f4 * 1.6);
+  const p4  = Math.min(hist.e8,  f4 * 0.9);
+  const p5  = f4;
+  const p6  = champ;
+
+  const ev =
+    (p1 - p2) * PAYOUTS[1] +
+    (p2 - p3) * PAYOUTS[2] +
+    (p3 - p4) * PAYOUTS[3] +
+    (p4 - p5) * PAYOUTS[4] +
+    (p5 - p6) * PAYOUTS[5] +
+    p6        * PAYOUTS[6];
+
+  return Math.max(0, ev);
+}
+
+function AutoBidder({ teams, isAdmin }) {
+  const [owner, setOwner] = useState("Matt");
+  const [discount, setDiscount] = useState(0.75);
+  const [strategy, setStrategy] = useState("balanced");
+  const [manualSpent, setManualSpent] = useState(0);
+  const [autoBidEnabled, setAutoBidEnabled] = useState(false);
+  const [bidLog, setBidLog] = useState([]);
+  const [activeTab, setActiveTab] = useState("sheet");
+  const [auctionState, setAuctionState] = useState(null);
+  const [liveTeam, setLiveTeam] = useState(null);
+  const pollRef = useRef(null);
+  const isBidding = useRef(false);
+
+  // Calculate money already spent by this owner from actual team data
+  const alreadySpent = teams
+    .filter(t => t.owner === owner && t.price > 0)
+    .reduce((s, t) => s + t.price, 0);
+  const totalSpent = alreadySpent + manualSpent;
+  const remaining = Math.max(0, 100 - totalSpent);
+
+  // Score every unsold team
+  const unsoldTeams = teams.filter(t => !t.owner);
+  const scoredTeams = [...teams]
+    .map(t => ({ ...t, ev: calcEV(t) }))
+    .sort((a, b) => b.ev - a.ev);
+
+  // Apply strategy filter to get targets
+  const getTargets = useCallback((teamList, rem) => {
+    const sorted = [...teamList].map(t => ({ ...t, ev: calcEV(t) })).sort((a, b) => b.ev - a.ev);
+    let targets;
+    if (strategy === "aggressive") targets = sorted.filter(t => !t.owner).slice(0, 8);
+    else if (strategy === "balanced") targets = sorted.filter(t => !t.owner && t.ev >= 2.5);
+    else targets = sorted.filter(t => !t.owner && t.ev >= 1.5 && (t.seed || 8) >= 3);
+
+    // Scale max bids to budget
+    const totalRaw = targets.reduce((s, t) => s + t.ev * discount, 0);
+    const scale = totalRaw > 0 ? Math.min(1, rem / totalRaw) : 1;
+    return targets.map(t => ({
+      ...t,
+      maxBid: Math.max(1, Math.round(t.ev * discount * scale)),
+    }));
+  }, [strategy, discount]);
+
+  const targets = getTargets(teams, remaining);
+
+  function addLog(msg, type = "info") {
+    setBidLog(prev => [{ msg, type, ts: new Date().toLocaleTimeString() }, ...prev.slice(0, 99)]);
+  }
+
+  // Poll Supabase every 3s when auto-bid is on
+  useEffect(() => {
+    if (!autoBidEnabled) {
+      if (pollRef.current) clearInterval(pollRef.current);
+      return;
+    }
+    const poll = async () => {
+      try {
+        const rows = await sb.get("auction_state", { id: 1 });
+        const state = rows?.[0];
+        if (!state) return;
+        setAuctionState(state);
+
+        if (state.phase !== "bidding" || !state.team_id) { setLiveTeam(null); return; }
+
+        // Get active team
+        const teamRows = await sb.get("bracket_teams", { id: state.team_id });
+        const active = teamRows?.[0];
+        if (!active) return;
+        setLiveTeam(active);
+
+        if (isBidding.current) return;
+
+        // Find this team in our targets
+        const target = targets.find(t =>
+          active.name?.toLowerCase().includes(t.name?.toLowerCase()) ||
+          t.name?.toLowerCase().includes(active.name?.toLowerCase())
+        );
+
+        if (!target) { return; }
+
+        const currentBids = state.bids || {};
+        const currentHigh = Math.max(0, ...Object.values(currentBids).map(Number));
+        const myBid = Number(currentBids[owner] || 0);
+        const maxBid = Math.min(target.maxBid, remaining);
+
+        if (myBid >= maxBid) return; // already at or above max
+        const nextBid = currentHigh + 1;
+        if (nextBid > maxBid) {
+          addLog(`🛑 ${active.name}: market $${nextBid} > max $${maxBid} — passing`, "skip");
+          return;
+        }
+
+        // Place bid via Supabase REST PATCH
+        isBidding.current = true;
+        const newBids = { ...currentBids, [owner]: nextBid };
+        await fetch(`${SUPABASE_URL}/rest/v1/auction_state?id=eq.1`, {
+          method: "PATCH",
+          headers: { ...SB_HEADERS },
+          body: JSON.stringify({ bids: newBids }),
+        });
+        addLog(`💰 Bid $${nextBid} on ${active.name} (EV $${target.ev.toFixed(1)}, max $${maxBid})`, "bid");
+        setTimeout(() => { isBidding.current = false; }, 1500);
+      } catch (e) {
+        addLog(`⚠ Poll error: ${e.message}`, "warn");
+      }
+    };
+
+    pollRef.current = setInterval(poll, 3000);
+    poll(); // immediate first run
+    return () => clearInterval(pollRef.current);
+  }, [autoBidEnabled, owner, targets, remaining]);
+
+  const seedColor = s => {
+    if (s <= 2) return "#22c55e";
+    if (s <= 4) return "#84cc16";
+    if (s <= 6) return "#eab308";
+    if (s <= 9) return "#f97316";
+    if (s <= 12) return "#ef4444";
+    return "#64748b";
+  };
+
+  const tabStyle = (id) => ({
+    background: "none", border: "none", cursor: "pointer",
+    padding: "8px 14px", fontSize: 12, fontWeight: 700,
+    color: activeTab === id ? "#f59e0b" : "#484f58",
+    borderBottom: `2px solid ${activeTab === id ? "#f59e0b" : "transparent"}`,
+    fontFamily: "'Inter', system-ui, sans-serif",
+    letterSpacing: "0.05em", textTransform: "uppercase",
+    transition: "all 0.15s",
+  });
+
+  return (
+    <div style={{ paddingBottom: 40, fontFamily: "'Inter', system-ui, sans-serif" }}>
+
+      {/* ── Config Header ── */}
+      <div style={{
+        background: "#161b22", border: "1px solid #30363d", borderRadius: 12,
+        padding: "16px 20px", marginBottom: 16,
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 10, color: "#8b949e", fontWeight: 700, letterSpacing: "0.12em", marginBottom: 4 }}>
+              AUTO-BIDDER · 2026
+            </div>
+            <div style={{ fontSize: 13, color: "#8b949e" }}>
+              EV-based auction heuristic · ${remaining.toFixed(0)} remaining budget
+            </div>
+          </div>
+
+          {/* Live toggle */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{
+              fontSize: 11, fontWeight: 700,
+              color: autoBidEnabled ? "#ef4444" : "#484f58",
+              letterSpacing: "0.1em",
+            }}>
+              {autoBidEnabled ? "● LIVE" : "○ OFF"}
+            </span>
+            <div
+              onClick={() => {
+                setAutoBidEnabled(p => {
+                  const next = !p;
+                  addLog(next ? "🟢 Auto-bidder ACTIVATED" : "⭕ Auto-bidder disabled");
+                  return next;
+                });
+              }}
+              style={{
+                width: 44, height: 24, borderRadius: 12,
+                background: autoBidEnabled ? "#f59e0b" : "#30363d",
+                cursor: "pointer", position: "relative", transition: "background 0.2s",
+                border: "1px solid " + (autoBidEnabled ? "#f59e0b" : "#484f58"),
+              }}
+            >
+              <div style={{
+                position: "absolute", top: 3,
+                left: autoBidEnabled ? 22 : 3,
+                width: 16, height: 16, borderRadius: "50%",
+                background: autoBidEnabled ? "#000" : "#8b949e",
+                transition: "left 0.2s",
+              }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Config Row */}
+        <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 11, color: "#8b949e" }}>OWNER</span>
+            <select
+              value={owner} onChange={e => setOwner(e.target.value)}
+              style={{ background: "#0d1117", border: "1px solid #30363d", color: "#e6edf3", padding: "5px 8px", borderRadius: 6, fontFamily: "inherit", fontSize: 12 }}
+            >
+              {OWNERS.map(o => <option key={o}>{o}</option>)}
+            </select>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flex: 1, minWidth: 180 }}>
+            <span style={{ fontSize: 11, color: "#8b949e", whiteSpace: "nowrap" }}>
+              DISCOUNT {Math.round(discount * 100)}%
+            </span>
+            <input
+              type="range" min={0.5} max={1.0} step={0.05} value={discount}
+              onChange={e => setDiscount(parseFloat(e.target.value))}
+              style={{ flex: 1, accentColor: "#f59e0b" }}
+            />
+          </div>
+
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 11, color: "#8b949e" }}>STRATEGY</span>
+            <select
+              value={strategy} onChange={e => setStrategy(e.target.value)}
+              style={{ background: "#0d1117", border: "1px solid #30363d", color: "#e6edf3", padding: "5px 8px", borderRadius: 6, fontFamily: "inherit", fontSize: 12 }}
+            >
+              <option value="aggressive">Aggressive</option>
+              <option value="balanced">Balanced</option>
+              <option value="value">Value Hunt</option>
+            </select>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: 11, color: "#8b949e" }}>EXTRA SPENT</span>
+            <input
+              type="number" value={manualSpent} min={0} max={100}
+              onChange={e => setManualSpent(parseFloat(e.target.value) || 0)}
+              style={{ width: 56, background: "#0d1117", border: "1px solid #30363d", color: "#e6edf3", padding: "5px 8px", borderRadius: 6, fontFamily: "inherit", fontSize: 12 }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Live Team Banner ── */}
+      {liveTeam && autoBidEnabled && (
+        <div style={{
+          background: "#2d1a00", border: "1px solid #f59e0b88",
+          borderRadius: 10, padding: "12px 18px", marginBottom: 16,
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+        }}>
+          <div>
+            <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700, marginBottom: 2 }}>ON THE CLOCK</div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: "#e6edf3" }}>
+              #{liveTeam.seed} {liveTeam.name}
+            </div>
+          </div>
+          {auctionState?.bids && (
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 10, color: "#8b949e" }}>CURRENT HIGH</div>
+              <div style={{ fontSize: 24, fontWeight: 900, color: "#f59e0b" }}>
+                ${Math.max(0, ...Object.values(auctionState.bids).map(Number))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Sub Tabs ── */}
+      <div style={{ borderBottom: "1px solid #21262d", marginBottom: 16, display: "flex", gap: 2 }}>
+        {[["sheet", "Bid Sheet"], ["heuristic", "How It Works"], ["log", `Log (${bidLog.length})`]].map(([id, label]) => (
+          <button key={id} style={tabStyle(id)} onClick={() => setActiveTab(id)}>{label}</button>
+        ))}
+      </div>
+
+      {/* ── BID SHEET ── */}
+      {activeTab === "sheet" && (
+        <>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #21262d" }}>
+                  {["#", "TEAM", "CHAMP%", "F4%", "EV", "MAX BID", ""].map(h => (
+                    <th key={h} style={{
+                      padding: "8px 10px", textAlign: h === "TEAM" ? "left" : "center",
+                      color: "#484f58", fontWeight: 700, fontSize: 10, letterSpacing: "0.1em",
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {scoredTeams.filter(t => t.ev > 0.3).map((t, i) => {
+                  const tgt = targets.find(x => x.id === t.id);
+                  const nameKey = Object.keys(TEAM_ODDS_2026).find(k =>
+                    t.name?.toLowerCase().includes(k.toLowerCase()) ||
+                    k.toLowerCase().includes(t.name?.toLowerCase())
+                  );
+                  const mkt = nameKey ? TEAM_ODDS_2026[nameKey] : null;
+                  const isOwned = !!t.owner;
+                  return (
+                    <tr key={t.id} style={{
+                      borderBottom: "1px solid #0d1117",
+                      opacity: isOwned ? 0.35 : 1,
+                      background: tgt ? "#f59e0b08" : "transparent",
+                    }}>
+                      <td style={{ padding: "7px 10px", textAlign: "center" }}>
+                        <span style={{ color: seedColor(t.seed || 8), fontWeight: 700, fontSize: 11 }}>
+                          {t.seed || "?"}
+                        </span>
+                      </td>
+                      <td style={{ padding: "7px 10px", fontWeight: tgt ? 700 : 500, color: "#e6edf3" }}>
+                        {t.name}
+                        {isOwned && <span style={{ fontSize: 10, color: "#484f58", marginLeft: 6 }}>({t.owner})</span>}
+                      </td>
+                      <td style={{ padding: "7px 10px", textAlign: "center", color: "#8b949e", fontSize: 11 }}>
+                        {mkt ? (mkt.champProb * 100).toFixed(1) + "%" : "—"}
+                      </td>
+                      <td style={{ padding: "7px 10px", textAlign: "center", color: "#8b949e", fontSize: 11 }}>
+                        {mkt ? (mkt.f4Prob * 100).toFixed(1) + "%" : "—"}
+                      </td>
+                      <td style={{ padding: "7px 10px", textAlign: "center", color: "#f59e0b", fontWeight: 700 }}>
+                        ${t.ev.toFixed(2)}
+                      </td>
+                      <td style={{ padding: "7px 10px", textAlign: "center" }}>
+                        {tgt ? (
+                          <span style={{ color: "#22c55e", fontWeight: 900, fontSize: 15 }}>${tgt.maxBid}</span>
+                        ) : (
+                          <span style={{ color: "#30363d" }}>—</span>
+                        )}
+                      </td>
+                      <td style={{ padding: "7px 10px", textAlign: "center" }}>
+                        {tgt ? (
+                          <span style={{
+                            background: "#22c55e22", color: "#22c55e", border: "1px solid #22c55e44",
+                            borderRadius: 4, padding: "2px 7px", fontSize: 10, fontWeight: 700,
+                          }}>BID</span>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{
+            marginTop: 12, padding: "10px 14px", background: "#0d1117",
+            border: "1px solid #21262d", borderRadius: 8, fontSize: 11, color: "#484f58",
+          }}>
+            <strong style={{ color: "#8b949e" }}>Budget plan:</strong>{" "}
+            ${targets.reduce((s, t) => s + t.maxBid, 0)} committed across {targets.length} targets
+            · ${Math.max(0, remaining - targets.reduce((s, t) => s + t.maxBid, 0))} reserve
+            · Discount {Math.round(discount * 100)}% of EV
+          </div>
+        </>
+      )}
+
+      {/* ── HEURISTIC ── */}
+      {activeTab === "heuristic" && (
+        <div style={{ fontSize: 13, color: "#8b949e", lineHeight: 1.8, maxWidth: 600 }}>
+          {[
+            ["Expected Value", `For each team: EV = Σ P(reach round R) × payout(R) where payouts are $6/$12/$24/$48/$96/$120 for rounds 1–6. Round probabilities blend 2026 betting market odds (60%) with historical seed performance since 1985 (40%).`],
+            ["2026 Market Data", `Championship odds sourced from DraftKings/BetMGM as of March 11, 2026. Duke +325 (~23.5%), Michigan +340 (~22.7%), Arizona +475 (~17.4%), Florida +775 (~11.4%). Final Four odds from DraftKings for 15+ teams.`],
+            [`Max Bid = EV × ${Math.round(discount * 100)}%`, `Your discount factor ensures positive expected value on every purchase. At 75%, you pay at most $0.75 for every $1.00 of expected return. Adjust upward if you're willing to pay near fair value.`],
+            ["Strategy Modes", "Aggressive: top 8 unsold teams, maximum concentration. Balanced: all unsold teams with EV ≥ $2.50, spread across tiers. Value Hunt: seeds 3+ only, targets market inefficiencies where chalk is overpriced."],
+            ["Budget Scaling", "Max bids are proportionally scaled so the sum doesn't exceed remaining budget. Teams below the EV threshold are skipped — you don't have to bid on everything."],
+            ["Live Polling", "When active, polls Supabase every 3 seconds. If the current team matches a target and the price is under max bid, it bids current-high + $1. Will not overbid or exceed budget."],
+          ].map(([title, body]) => (
+            <div key={title} style={{ marginBottom: 18, paddingBottom: 18, borderBottom: "1px solid #21262d" }}>
+              <div style={{ color: "#e6edf3", fontWeight: 700, marginBottom: 4, fontSize: 13 }}>{title}</div>
+              <div>{body}</div>
+            </div>
+          ))}
+          <div style={{
+            background: "#2d1a00", border: "1px solid #f59e0b44",
+            borderRadius: 8, padding: "12px 16px",
+          }}>
+            <strong style={{ color: "#f59e0b" }}>Manual override:</strong> Auto-bidder is a floor, not a ceiling. Bid manually any time — the auto-bidder won't compete against your manual bids or exceed them.
+          </div>
+        </div>
+      )}
+
+      {/* ── LOG ── */}
+      {activeTab === "log" && (
+        <div>
+          {bidLog.length === 0 ? (
+            <div style={{ color: "#484f58", fontSize: 13, padding: "20px 0" }}>
+              No activity yet. Enable auto-bidder to start logging.
+            </div>
+          ) : (
+            bidLog.map((entry, i) => (
+              <div key={i} style={{
+                padding: "7px 12px", borderRadius: 6, marginBottom: 4, fontSize: 12,
+                background: entry.type === "bid" ? "#0d2818" : entry.type === "warn" ? "#2d1a00" : "#161b22",
+                borderLeft: `3px solid ${entry.type === "bid" ? "#22c55e" : entry.type === "warn" ? "#f59e0b" : "#30363d"}`,
+                display: "flex", gap: 12, alignItems: "center",
+              }}>
+                <span style={{ color: "#484f58", fontSize: 10, whiteSpace: "nowrap" }}>{entry.ts}</span>
+                <span style={{ color: entry.type === "bid" ? "#22c55e" : entry.type === "warn" ? "#f59e0b" : "#8b949e" }}>
+                  {entry.msg}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── APP ───────────────────────────────────────────────────────────────────────
 const SEASON = 2026;
@@ -2306,6 +2788,7 @@ export default function App() {
     { id: "tournament",  label: "Bracket"   },
     { id: "live",        label: "Live"      },
     { id: "auction",     label: "Auction"   },
+    { id: "autobidder",  label: "Auto-Bid" },
     { id: "history",     label: "History"   },
     ...(isAdmin ? [{ id: "admin", label: "Admin" }] : []),
   ];
@@ -2385,6 +2868,7 @@ export default function App() {
         {tab === "live"        && <LiveScores teams={teams} />}
         {tab === "auction"     && <AuctionRoom key={auctionKey} teams={teams} setTeams={setTeams} isAdmin={isAdmin} />}
         {tab === "history"     && <HistoryTab />}
+        {tab === "autobidder" && <AutoBidder teams={teams} isAdmin={isAdmin} />}
         {tab === "admin"   && isAdmin && <AdminPanel teams={teams} setTeams={setTeams} onReset={handleReset} onAddTeam={handleAddTeam} onDeleteTeam={handleDeleteTeam} />}
       </div>
     </div>
