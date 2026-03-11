@@ -2788,7 +2788,7 @@ export default function App() {
     { id: "tournament",  label: "Bracket"   },
     { id: "live",        label: "Live"      },
     { id: "auction",     label: "Auction"   },
-    { id: "autobidder",  label: "Auto-Bid" },
+...(isAdmin ? [{ id: "autobidder", label: "Auto-Bid" }] : []),
     { id: "history",     label: "History"   },
     ...(isAdmin ? [{ id: "admin", label: "Admin" }] : []),
   ];
