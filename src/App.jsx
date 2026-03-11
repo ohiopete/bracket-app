@@ -1411,8 +1411,22 @@ function AdminPanel({ teams, setTeams, onReset, onAddTeam, onDeleteTeam }) {
                     <option value="">Region...</option>
                     {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
                   </select>
+                  <select
+                    value={editingTeam.owner ?? ""}
+                    onChange={e => setEditingTeam(prev => ({ ...prev, owner: e.target.value }))}
+                    style={{ minWidth: 100, background: "#0d1117", border: "1px solid #30363d", borderRadius: 6, padding: "8px 10px", color: editingTeam.owner ? OWNER_COLORS[editingTeam.owner] || "#e6edf3" : "#484f58", fontSize: 14, fontWeight: 700, outline: "none" }}>
+                    <option value="">Owner...</option>
+                    {OWNERS.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                  <input
+                    type="number" min={0} step={0.25}
+                    value={editingTeam.price ?? ""}
+                    onChange={e => setEditingTeam(prev => ({ ...prev, price: e.target.value ? parseFloat(e.target.value) : 0 }))}
+                    placeholder="$Price"
+                    style={{ width: 80, background: "#0d1117", border: "1px solid #30363d", borderRadius: 6, padding: "8px 10px", color: "#e6edf3", fontSize: 14, outline: "none", textAlign: "center" }}
+                  />
                   <button onClick={() => {
-                    setTeams(prev => prev.map(t2 => t2.id === t.id ? { ...t2, name: editingTeam.name, seed: editingTeam.seed, region: editingTeam.region } : t2));
+                    setTeams(prev => prev.map(t2 => t2.id === t.id ? { ...t2, name: editingTeam.name, seed: editingTeam.seed, region: editingTeam.region, owner: editingTeam.owner, price: editingTeam.price } : t2));
                     setEditingTeam(null);
                   }} style={{ background: "#10b981", color: "#000", border: "none", borderRadius: 6, padding: "8px 14px", fontWeight: 800, cursor: "pointer" }}>✓ Save</button>
                   <button onClick={() => setEditingTeam(null)} style={{ background: "#21262d", color: "#8b949e", border: "none", borderRadius: 6, padding: "8px 14px", fontWeight: 700, cursor: "pointer" }}>✕</button>
@@ -1431,7 +1445,7 @@ function AdminPanel({ teams, setTeams, onReset, onAddTeam, onDeleteTeam }) {
                       {t.owner && <span style={{ fontSize: 11, color: OWNER_COLORS[t.owner], fontWeight: 700 }}>{t.owner}</span>}
                     </div>
                   </div>
-                  <button onClick={() => setEditingTeam({ id: t.id, name: t.name, seed: t.seed ?? null, region: t.region ?? null })}
+                  <button onClick={() => setEditingTeam({ id: t.id, name: t.name, seed: t.seed ?? null, region: t.region ?? null, owner: t.owner ?? "", price: t.price ?? 0 })}
                     style={{ background: "#21262d", color: "#8b949e", border: "1px solid #30363d", borderRadius: 6, padding: "6px 12px", fontWeight: 700, cursor: "pointer", fontSize: 12 }}>
                     Edit
                   </button>
@@ -1732,7 +1746,10 @@ function LiveScores({ teams }) {
           situation,
         };
       });
-      setGames(events);
+      // Filter out stale finals from previous tournaments (older than 10 days)
+      const cutoff = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+      const fresh = events.filter(g => g.status !== "STATUS_FINAL" || new Date(g.date) > cutoff);
+      setGames(fresh);
       setLastUpdated(new Date());
       setError(null);
     } catch (e) {
