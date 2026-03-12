@@ -2252,7 +2252,7 @@ function calcEV(team) {
   return Math.max(0, ev);
 }
 
-function AutoBidder({ teams, isAdmin }) {
+function AutoBidder({ teams, isAdmin, autoBidEnabled, setAutoBidEnabled }) {
   const [owner, setOwner] = useState("Matt");
   const [discount, setDiscount] = useState(0.75);
   const [strategy, setStrategy] = useState("balanced");
@@ -2868,7 +2868,7 @@ export default function App() {
         {tab === "live"        && <LiveScores teams={teams} />}
         {tab === "auction"     && <AuctionRoom key={auctionKey} teams={teams} setTeams={setTeams} isAdmin={isAdmin} />}
         {tab === "history"     && <HistoryTab />}
-        {tab === "autobidder" && <AutoBidder teams={teams} isAdmin={isAdmin} />}
+        {tab === "autobidder" && <AutoBidder teams={teams} isAdmin={isAdmin} autoBidEnabled={autoBidEnabled} setAutoBidEnabled={setAutoBidEnabled} />}
         {tab === "admin"   && isAdmin && <AdminPanel teams={teams} setTeams={setTeams} onReset={handleReset} onAddTeam={handleAddTeam} onDeleteTeam={handleDeleteTeam} />}
       </div>
     </div>
