@@ -2252,17 +2252,12 @@ function calcEV(team) {
   return Math.max(0, ev);
 }
 
-function AutoBidder({ teams, isAdmin, autoBidEnabled, setAutoBidEnabled }) {
+function AutoBidder({ teams, isAdmin }) {
   const [owner, setOwner] = useState("Matt");
   const [discount, setDiscount] = useState(0.75);
   const [strategy, setStrategy] = useState("balanced");
   const [manualSpent, setManualSpent] = useState(0);
-  const [bidLog, setBidLog] = useState([]);
   const [activeTab, setActiveTab] = useState("sheet");
-  const [auctionState, setAuctionState] = useState(null);
-  const [liveTeam, setLiveTeam] = useState(null);
-  const pollRef = useRef(null);
-  const isBidding = useRef(false);
 
   // Calculate money already spent by this owner from actual team data
   const alreadySpent = teams
@@ -2296,73 +2291,6 @@ function AutoBidder({ teams, isAdmin, autoBidEnabled, setAutoBidEnabled }) {
 
   const targets = getTargets(teams, remaining);
 
-  function addLog(msg, type = "info") {
-    setBidLog(prev => [{ msg, type, ts: new Date().toLocaleTimeString() }, ...prev.slice(0, 99)]);
-  }
-
-  // Poll Supabase every 3s when auto-bid is on
-  useEffect(() => {
-    if (!autoBidEnabled) {
-      if (pollRef.current) clearInterval(pollRef.current);
-      return;
-    }
-    const poll = async () => {
-      try {
-        const rows = await sb.get("auction_state", { id: 1 });
-        const state = rows?.[0];
-        if (!state) return;
-        setAuctionState(state);
-
-        if (state.phase !== "bidding" || !state.team_id) { setLiveTeam(null); return; }
-
-        // Get active team
-        const teamRows = await sb.get("bracket_teams", { id: state.team_id });
-        const active = teamRows?.[0];
-        if (!active) return;
-        setLiveTeam(active);
-
-        if (isBidding.current) return;
-
-        // Find this team in our targets
-        const target = targets.find(t =>
-          active.name?.toLowerCase().includes(t.name?.toLowerCase()) ||
-          t.name?.toLowerCase().includes(active.name?.toLowerCase())
-        );
-
-        if (!target) { return; }
-
-        const currentBids = state.bids || {};
-        const currentHigh = Math.max(0, ...Object.values(currentBids).map(Number));
-        const myBid = Number(currentBids[owner] || 0);
-        const maxBid = Math.min(target.maxBid, remaining);
-
-        if (myBid >= maxBid) return; // already at or above max
-        const nextBid = currentHigh + 1;
-        if (nextBid > maxBid) {
-          addLog(`🛑 ${active.name}: market $${nextBid} > max $${maxBid} — passing`, "skip");
-          return;
-        }
-
-        // Place bid via Supabase REST PATCH
-        isBidding.current = true;
-        const newBids = { ...currentBids, [owner]: nextBid };
-        await fetch(`${SUPABASE_URL}/rest/v1/auction_state?id=eq.1`, {
-          method: "PATCH",
-          headers: { ...SB_HEADERS },
-          body: JSON.stringify({ bids: newBids }),
-        });
-        addLog(`💰 Bid $${nextBid} on ${active.name} (EV $${target.ev.toFixed(1)}, max $${maxBid})`, "bid");
-        setTimeout(() => { isBidding.current = false; }, 1500);
-      } catch (e) {
-        addLog(`⚠ Poll error: ${e.message}`, "warn");
-      }
-    };
-
-    pollRef.current = setInterval(poll, 3000);
-    poll(); // immediate first run
-    return () => clearInterval(pollRef.current);
-  }, [autoBidEnabled, owner, targets, remaining]);
-
   const seedColor = s => {
     if (s <= 2) return "#22c55e";
     if (s <= 4) return "#84cc16";
@@ -2393,44 +2321,10 @@ function AutoBidder({ teams, isAdmin, autoBidEnabled, setAutoBidEnabled }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
           <div>
             <div style={{ fontSize: 10, color: "#8b949e", fontWeight: 700, letterSpacing: "0.12em", marginBottom: 4 }}>
-              AUTO-BIDDER · 2026
+              BID SHEET · 2026
             </div>
             <div style={{ fontSize: 13, color: "#8b949e" }}>
               EV-based auction heuristic · ${remaining.toFixed(0)} remaining budget
-            </div>
-          </div>
-
-          {/* Live toggle */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{
-              fontSize: 11, fontWeight: 700,
-              color: autoBidEnabled ? "#ef4444" : "#484f58",
-              letterSpacing: "0.1em",
-            }}>
-              {autoBidEnabled ? "● LIVE" : "○ OFF"}
-            </span>
-            <div
-              onClick={() => {
-                setAutoBidEnabled(p => {
-                  const next = !p;
-                  addLog(next ? "🟢 Auto-bidder ACTIVATED" : "⭕ Auto-bidder disabled");
-                  return next;
-                });
-              }}
-              style={{
-                width: 44, height: 24, borderRadius: 12,
-                background: autoBidEnabled ? "#f59e0b" : "#30363d",
-                cursor: "pointer", position: "relative", transition: "background 0.2s",
-                border: "1px solid " + (autoBidEnabled ? "#f59e0b" : "#484f58"),
-              }}
-            >
-              <div style={{
-                position: "absolute", top: 3,
-                left: autoBidEnabled ? 22 : 3,
-                width: 16, height: 16, borderRadius: "50%",
-                background: autoBidEnabled ? "#000" : "#8b949e",
-                transition: "left 0.2s",
-              }} />
             </div>
           </div>
         </div>
@@ -2481,33 +2375,9 @@ function AutoBidder({ teams, isAdmin, autoBidEnabled, setAutoBidEnabled }) {
         </div>
       </div>
 
-      {/* ── Live Team Banner ── */}
-      {liveTeam && autoBidEnabled && (
-        <div style={{
-          background: "#2d1a00", border: "1px solid #f59e0b88",
-          borderRadius: 10, padding: "12px 18px", marginBottom: 16,
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-        }}>
-          <div>
-            <div style={{ fontSize: 10, color: "#f59e0b", fontWeight: 700, marginBottom: 2 }}>ON THE CLOCK</div>
-            <div style={{ fontSize: 18, fontWeight: 900, color: "#e6edf3" }}>
-              #{liveTeam.seed} {liveTeam.name}
-            </div>
-          </div>
-          {auctionState?.bids && (
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 10, color: "#8b949e" }}>CURRENT HIGH</div>
-              <div style={{ fontSize: 24, fontWeight: 900, color: "#f59e0b" }}>
-                ${Math.max(0, ...Object.values(auctionState.bids).map(Number))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* ── Sub Tabs ── */}
       <div style={{ borderBottom: "1px solid #21262d", marginBottom: 16, display: "flex", gap: 2 }}>
-        {[["sheet", "Bid Sheet"], ["heuristic", "How It Works"], ["log", `Log (${bidLog.length})`]].map(([id, label]) => (
+        {[["sheet", "Bid Sheet"], ["heuristic", "How It Works"]].map(([id, label]) => (
           <button key={id} style={tabStyle(id)} onClick={() => setActiveTab(id)}>{label}</button>
         ))}
       </div>
@@ -2602,7 +2472,6 @@ function AutoBidder({ teams, isAdmin, autoBidEnabled, setAutoBidEnabled }) {
             [`Max Bid = EV × ${Math.round(discount * 100)}%`, `Your discount factor ensures positive expected value on every purchase. At 75%, you pay at most $0.75 for every $1.00 of expected return. Adjust upward if you're willing to pay near fair value.`],
             ["Strategy Modes", "Aggressive: top 8 unsold teams, maximum concentration. Balanced: all unsold teams with EV ≥ $2.50, spread across tiers. Value Hunt: seeds 3+ only, targets market inefficiencies where chalk is overpriced."],
             ["Budget Scaling", "Max bids are proportionally scaled so the sum doesn't exceed remaining budget. Teams below the EV threshold are skipped — you don't have to bid on everything."],
-            ["Live Polling", "When active, polls Supabase every 3 seconds. If the current team matches a target and the price is under max bid, it bids current-high + $1. Will not overbid or exceed budget."],
           ].map(([title, body]) => (
             <div key={title} style={{ marginBottom: 18, paddingBottom: 18, borderBottom: "1px solid #21262d" }}>
               <div style={{ color: "#e6edf3", fontWeight: 700, marginBottom: 4, fontSize: 13 }}>{title}</div>
@@ -2613,35 +2482,11 @@ function AutoBidder({ teams, isAdmin, autoBidEnabled, setAutoBidEnabled }) {
             background: "#2d1a00", border: "1px solid #f59e0b44",
             borderRadius: 8, padding: "12px 16px",
           }}>
-            <strong style={{ color: "#f59e0b" }}>Manual override:</strong> Auto-bidder is a floor, not a ceiling. Bid manually any time — the auto-bidder won't compete against your manual bids or exceed them.
+            <strong style={{ color: "#f59e0b" }}>How to use:</strong> This sheet shows your max bid for each target. Enter bids manually in the Auction tab — use these numbers as your ceiling.
           </div>
         </div>
       )}
 
-      {/* ── LOG ── */}
-      {activeTab === "log" && (
-        <div>
-          {bidLog.length === 0 ? (
-            <div style={{ color: "#484f58", fontSize: 13, padding: "20px 0" }}>
-              No activity yet. Enable auto-bidder to start logging.
-            </div>
-          ) : (
-            bidLog.map((entry, i) => (
-              <div key={i} style={{
-                padding: "7px 12px", borderRadius: 6, marginBottom: 4, fontSize: 12,
-                background: entry.type === "bid" ? "#0d2818" : entry.type === "warn" ? "#2d1a00" : "#161b22",
-                borderLeft: `3px solid ${entry.type === "bid" ? "#22c55e" : entry.type === "warn" ? "#f59e0b" : "#30363d"}`,
-                display: "flex", gap: 12, alignItems: "center",
-              }}>
-                <span style={{ color: "#484f58", fontSize: 10, whiteSpace: "nowrap" }}>{entry.ts}</span>
-                <span style={{ color: entry.type === "bid" ? "#22c55e" : entry.type === "warn" ? "#f59e0b" : "#8b949e" }}>
-                  {entry.msg}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -2658,7 +2503,6 @@ export default function App() {
   const [adminPw, setAdminPw] = useState("");
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [auctionKey, setAuctionKey] = useState(0); // increment to force AuctionRoom remount on reset
-  const [autoBidEnabled, setAutoBidEnabled] = useState(false);
   const saveTimers = useRef({}); // per-team debounce timers keyed by team id
 
   // ── Merge DB rows into local team state (DB is source of truth) ─────────
@@ -2868,7 +2712,7 @@ export default function App() {
         {tab === "live"        && <LiveScores teams={teams} />}
         {tab === "auction"     && <AuctionRoom key={auctionKey} teams={teams} setTeams={setTeams} isAdmin={isAdmin} />}
         {tab === "history"     && <HistoryTab />}
-        {tab === "autobidder" && <AutoBidder teams={teams} isAdmin={isAdmin} autoBidEnabled={autoBidEnabled} setAutoBidEnabled={setAutoBidEnabled} />}
+        {tab === "autobidder" && <AutoBidder teams={teams} isAdmin={isAdmin} />}
         {tab === "admin"   && isAdmin && <AdminPanel teams={teams} setTeams={setTeams} onReset={handleReset} onAddTeam={handleAddTeam} onDeleteTeam={handleDeleteTeam} />}
       </div>
     </div>
