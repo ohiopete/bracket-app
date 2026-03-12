@@ -2252,12 +2252,11 @@ function calcEV(team) {
   return Math.max(0, ev);
 }
 
-function AutoBidder({ teams, isAdmin }) {
+function AutoBidder({ teams, isAdmin, autoBidEnabled, setAutoBidEnabled }) {
   const [owner, setOwner] = useState("Matt");
   const [discount, setDiscount] = useState(0.75);
   const [strategy, setStrategy] = useState("balanced");
   const [manualSpent, setManualSpent] = useState(0);
-  const [autoBidEnabled, setAutoBidEnabled] = useState(false);
   const [bidLog, setBidLog] = useState([]);
   const [activeTab, setActiveTab] = useState("sheet");
   const [auctionState, setAuctionState] = useState(null);
@@ -2659,6 +2658,7 @@ export default function App() {
   const [adminPw, setAdminPw] = useState("");
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [auctionKey, setAuctionKey] = useState(0); // increment to force AuctionRoom remount on reset
+  const [autoBidEnabled, setAutoBidEnabled] = useState(false);
   const saveTimers = useRef({}); // per-team debounce timers keyed by team id
 
   // ── Merge DB rows into local team state (DB is source of truth) ─────────
@@ -2868,7 +2868,7 @@ export default function App() {
         {tab === "live"        && <LiveScores teams={teams} />}
         {tab === "auction"     && <AuctionRoom key={auctionKey} teams={teams} setTeams={setTeams} isAdmin={isAdmin} />}
         {tab === "history"     && <HistoryTab />}
-        {tab === "autobidder" && <AutoBidder teams={teams} isAdmin={isAdmin} />}
+        {tab === "autobidder" && <AutoBidder teams={teams} isAdmin={isAdmin} autoBidEnabled={autoBidEnabled} setAutoBidEnabled={setAutoBidEnabled} />}
         {tab === "admin"   && isAdmin && <AdminPanel teams={teams} setTeams={setTeams} onReset={handleReset} onAddTeam={handleAddTeam} onDeleteTeam={handleDeleteTeam} />}
       </div>
     </div>
