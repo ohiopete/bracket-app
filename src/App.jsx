@@ -2257,7 +2257,6 @@ function AutoBidder({ teams, isAdmin, autoBidEnabled, setAutoBidEnabled }) {
   const [discount, setDiscount] = useState(0.75);
   const [strategy, setStrategy] = useState("balanced");
   const [manualSpent, setManualSpent] = useState(0);
-  const [autoBidEnabled, setAutoBidEnabled] = useState(false);
   const [bidLog, setBidLog] = useState([]);
   const [activeTab, setActiveTab] = useState("sheet");
   const [auctionState, setAuctionState] = useState(null);
@@ -2659,6 +2658,7 @@ export default function App() {
   const [adminPw, setAdminPw] = useState("");
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [auctionKey, setAuctionKey] = useState(0); // increment to force AuctionRoom remount on reset
+  const [autoBidEnabled, setAutoBidEnabled] = useState(false);
   const saveTimers = useRef({}); // per-team debounce timers keyed by team id
 
   // ── Merge DB rows into local team state (DB is source of truth) ─────────
